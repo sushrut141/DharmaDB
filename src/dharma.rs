@@ -1,10 +1,10 @@
-use crate::dharma::dharma_opts::DharmaOpts;
-use crate::errors::Errors;
 use std::error::Error;
 use std::fmt::Display;
+
 use subway::skiplist::SkipList;
 
-mod dharma_opts;
+use crate::errors::Errors;
+use crate::options::DharmaOpts;
 
 struct Dharma<K, V> {
     options: DharmaOpts,
@@ -42,9 +42,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::dharma::dharma_opts::DharmaOpts;
     use crate::dharma::Dharma;
     use crate::errors::Errors;
+    use crate::options::DharmaOpts;
 
     #[test]
     fn test_creation() {
