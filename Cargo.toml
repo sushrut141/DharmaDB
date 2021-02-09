@@ -1,0 +1,10 @@
+[package]
+name = "dharma"
+version = "0.1.0"
+authors = ["sushrutshivaswamy"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+subway = "0.1.0"
