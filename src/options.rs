@@ -1,12 +1,22 @@
 /// Configuration properties used to initialize a database instance.
 pub struct DharmaOpts {
-    /// Used to bootstrap database from existing store if data has already been persisted at that path.
+    /// Flag specifying whether to bootstrap database from existing store if data has already been persisted at that path.
     bootstrap: bool,
     /// Path at which data is persisted.
     path: String,
 }
 
 impl DharmaOpts {
+    /// Create configuration options with default values.
+    /// Default value for all configuration values are specified below.
+    ///
+    /// # Defaults
+    ///
+    /// | Property | Default Value |
+    /// | :------- | :------------ |
+    /// | path     | /var/lib/dharma |
+    /// | bootstrap | true         |
+    ///
     pub fn default() -> DharmaOpts {
         DharmaOpts {
             bootstrap: true,
