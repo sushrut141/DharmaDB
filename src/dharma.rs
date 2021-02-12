@@ -5,6 +5,7 @@ use subway::skiplist::SkipList;
 
 use crate::errors::Errors;
 use crate::options::DharmaOpts;
+use crate::persistence::Persistence;
 
 /// Represents the database interface using which data can be persisted and retrieved.
 ///
@@ -18,6 +19,8 @@ pub struct Dharma<K, V> {
     options: DharmaOpts,
 
     memory: SkipList<K, V>,
+
+    persistence: Persistence<K, V>,
 }
 
 impl<K, V> Dharma<K, V>
@@ -36,12 +39,12 @@ where
     /// use dharma::dharma::Dharma;
     /// use dharma::options::DharmaOpts;
     ///
-    /// let db_status = Dharma::new(DharmaOpts::default());
+    /// let db_status = Dharma::create(DharmaOpts::default());
     /// if db_status.is_ok() {
     ///     let mut db: Dharma<String, i32> = db_status.unwrap();
     /// }
     /// ```
-    pub fn new(options: DharmaOpts) -> Result<Dharma<K, V>, Errors> {
+    pub fn create(options: DharmaOpts) -> Result<Dharma<K, V>, Errors> {
         Ok(Dharma {
             options,
             memory: SkipList::new(),
@@ -130,20 +133,20 @@ mod tests {
 
     #[test]
     fn test_creation() {
-        let db: Result<Dharma<i32, i32>, Errors> = Dharma::new(DharmaOpts::default());
+        let db: Result<Dharma<i32, i32>, Errors> = Dharma::create(DharmaOpts::default());
         assert_eq!(db.is_ok(), true);
     }
 
     #[test]
     fn test_insert() {
-        let mut db = Dharma::new(DharmaOpts::default()).expect("Error creating database");
+        let mut db = Dharma::create(DharmaOpts::default()).expect("Error creating database");
         let insert = db.put(1, 1);
         assert!(insert.is_ok());
     }
 
     #[test]
     fn test_get() {
-        let mut db = Dharma::new(DharmaOpts::default()).expect("Error creating database");
+        let mut db = Dharma::create(DharmaOpts::default()).expect("Error creating database");
         let insert = db.put(1, 1).expect("Failed to insert entry");
         let get = db.get(&1).expect("Failed to read value from database");
         assert_eq!(get, 1);
