@@ -11,19 +11,25 @@ pub struct Persistence<K, V> {
 }
 
 impl<K, V> Persistence<K, V> {
-    pub fn create(options: DharmaOpts) -> Result<Persistence<K, V>, Errors> {
+    pub fn create(options: &DharmaOpts) -> Result<Persistence<K, V>, Errors> {
         unimplemented!()
     }
 
-    pub fn read(mut self, key: &K) -> Result<Option<V>, Errors> {
+    pub fn get(mut self, key: &K) -> Result<Option<V>, Errors> {
         // read SSTables and return the value is present
         unimplemented!()
     }
 
-    pub fn write(&mut self, key: K, value: V) -> Result<(), Errors> {
+    pub fn insert(&mut self, key: K, value: V) -> Result<(), Errors> {
         // write to Write Ahead Log
         unimplemented!()
     }
+
+    pub fn delete(&mut self, key: K) -> Result<(), Errors> {
+        // add delete marker to Write Ahead Log
+        unimplemented!()
+    }
+
 
     pub fn flush(&mut self, values: &Vec<(K, V)>) -> Result<(), Errors> {
         // write the values to disk as an SSTable

@@ -1,9 +1,12 @@
 /// Configuration properties used to initialize a database instance.
 pub struct DharmaOpts {
     /// Flag specifying whether to bootstrap database from existing store if data has already been persisted at that path.
-    bootstrap: bool,
+    pub bootstrap: bool,
     /// Path at which data is persisted.
-    path: String,
+    pub path: String,
+    /// Threshold for memtable size. If size exceeds this then memtable will be
+    /// flushed to disk.
+    pub memtable_size_in_bytes: usize
 }
 
 impl DharmaOpts {
@@ -21,6 +24,7 @@ impl DharmaOpts {
         DharmaOpts {
             bootstrap: true,
             path: String::from("/var/lib/dharma"),
+            memtable_size_in_bytes: 4
         }
     }
 }
@@ -34,5 +38,6 @@ mod tests {
         let options = DharmaOpts::default();
         assert!(options.bootstrap);
         assert_eq!(options.path, String::from("/var/lib/dharma"));
+        assert_eq!(options.memtable_size_in_bytes, 4);
     }
 }
