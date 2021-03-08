@@ -1,5 +1,5 @@
-use std::fmt::Display;
 use core::mem::size_of;
+use std::fmt::Display;
 
 use subway::skiplist::SkipList;
 
@@ -22,7 +22,7 @@ pub struct Dharma<K, V> {
 
     persistence: Persistence<K, V>,
 
-    size: usize
+    size: usize,
 }
 
 impl<K, V> Dharma<K, V>
@@ -73,12 +73,12 @@ where
     ///     let result = db.get(&key);
     /// }
     /// ```
-    pub fn get(&mut self, key: &K) -> Result<V, Errors> {
+    pub fn get(&mut self, key: &K) -> Result<Option<V>, Errors> {
         let maybe_in_memory = self.memory.get(key);
         if maybe_in_memory.is_some() {
-            return Ok(maybe_in_memory.unwrap());
+            return Ok(maybe_in_memory);
         }
-        return self.persistence.get(key);
+        self.persistence.get(key)
     }
 
     /// Associate the supplied value with the key.
@@ -106,8 +106,7 @@ where
     pub fn put(&mut self, key: K, value: V) -> Result<(), Errors> {
         // try inserting into WAL else fail the operation
         // might need to acquire lock over memory before mutating memory
-        let wal_insert_result =
-            self.persistence.insert(key.clone(), value.clone());
+        let wal_insert_result = self.persistence.insert(key.clone(), value.clone());
         if wal_insert_result.is_ok() {
             self.memory.insert(key.clone(), value.clone());
             self.size += size_of::<K>() + size_of::<V>();
@@ -117,15 +116,16 @@ where
                 // several things could go wrong here
                 // flushing memtable to disk could fail
                 // or deleting old WAL could fail
-                // appropriate recovery action wll have to be taken
+                // appropriate recovery action will have to be taken
                 let flush_memory_result = self.persistence.flush(&keys_and_values);
                 if flush_memory_result.is_ok() {
                     self.reset_memory();
+                    return Ok(());
                 }
-                flush_memory_result
+                return flush_memory_result;
             }
         }
-        wal_insert_result
+        Err(Errors::WAL_WRITE_FAILED)
     }
 
     /// Delete value associated with the supplied key if it exists.
@@ -151,7 +151,7 @@ where
         let wal_delete_result = self.persistence.delete(key);
         if wal_delete_result.is_ok() {
             self.memory.delete(&key);
-            Ok(())
+            return Ok(());
         }
         wal_delete_result
     }
@@ -160,13 +160,13 @@ where
     /// the database from the Write Ahead Log. This operation may lead to
     /// data loss.
     pub fn recover(options: DharmaOpts) -> Result<Dharma<K, V>, Errors> {
-
+        unimplemented!()
     }
 
     /// Create a new in-memory store to process further operations.
     /// This operation is required after the current in-memory data is flushed to disk.
     fn reset_memory(&mut self) {
         self.memory = SkipList::new();
-        self.size  = 0;
+        self.size = 0;
     }
 }

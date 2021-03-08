@@ -1,2 +1,4 @@
+pub mod compaction;
 pub mod sorted_string_table;
-pub mod write_ahead_log;
+
+mod sstable_test;

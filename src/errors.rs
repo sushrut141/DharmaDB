@@ -1,24 +1,35 @@
 use std::fmt::{Debug, Display, Formatter};
 
+#[allow(non_camel_case_types)]
 #[derive(PartialEq)]
 pub enum Errors {
     DB_PATH_DIRTY,
+    DB_LOG_CREATION_FAILED,
     DB_BOOTSTRAP_FAILED,
     DB_NO_SUCH_KEY,
     DB_WRITE_FAILED,
     DB_DELETE_FAILED,
+    SSTABLE_CREATION_FAILED,
+    SSTABLE_READ_FAILED,
+    WAL_WRITE_FAILED,
 }
 
 impl Errors {
     pub fn value(&self) -> &'static str {
         match self {
-            DB_PATH_DIRTY => "The supplied database path is not empty.",
-            DB_BOOTSTRAP_FAILED => {
+            Errors::DB_PATH_DIRTY => "The supplied database path is already in use.",
+            Errors::DB_LOG_CREATION_FAILED => {
+                "Failed to create Write Ahead Log during Database startup."
+            }
+            Errors::DB_BOOTSTRAP_FAILED => {
                 "Could not ingest existing logs to start database. Log files may be corrupted."
             }
-            DB_NO_SUCH_KEY => "No Such Key found.",
-            DB_WRITE_FAILED => "Could not write entry to database.",
-            DB_DELETE_FAILED => "Could not delete entry from database.",
+            Errors::DB_NO_SUCH_KEY => "No Such Key found.",
+            Errors::DB_WRITE_FAILED => "Could not write entry to database.",
+            Errors::DB_DELETE_FAILED => "Could not delete entry from database.",
+            Errors::SSTABLE_CREATION_FAILED => "Could not create SSTable on disk.",
+            Errors::SSTABLE_READ_FAILED => "Failed to read SSTable from disk.",
+            Errors::WAL_WRITE_FAILED => "Write Ahead Log write failed.",
         }
     }
 }

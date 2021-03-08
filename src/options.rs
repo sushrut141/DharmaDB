@@ -6,7 +6,12 @@ pub struct DharmaOpts {
     pub path: String,
     /// Threshold for memtable size. If size exceeds this then memtable will be
     /// flushed to disk.
-    pub memtable_size_in_bytes: usize
+    pub memtable_size_in_bytes: usize,
+    /// block size in bytes
+    pub block_size_in_bytes: usize,
+    /// number of blocks in an SSTable
+    /// This field will be deprecated after we introduced variable sized SSTables
+    pub blocks_per_sstable: usize,
 }
 
 impl DharmaOpts {
@@ -24,7 +29,11 @@ impl DharmaOpts {
         DharmaOpts {
             bootstrap: true,
             path: String::from("/var/lib/dharma"),
-            memtable_size_in_bytes: 4
+            memtable_size_in_bytes: 4,
+            block_size_in_bytes: 32768,
+            // 32 blocks (each block 32k in size) result in 1MB of memory
+            // overall 32MB per SSTable
+            blocks_per_sstable: 32 * 32,
         }
     }
 }
@@ -39,5 +48,6 @@ mod tests {
         assert!(options.bootstrap);
         assert_eq!(options.path, String::from("/var/lib/dharma"));
         assert_eq!(options.memtable_size_in_bytes, 4);
+        assert_eq!(options.block_size_in_bytes, 32768);
     }
 }
