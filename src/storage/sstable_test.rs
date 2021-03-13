@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::options::DharmaOpts;
-    use crate::storage::sorted_string_table::{read_sstable, write_sstables};
+    use crate::storage::sorted_string_table_writer::{read_sstable, write_sstable};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::path::Path;
 
@@ -39,7 +39,7 @@ mod tests {
         options.block_size_in_bytes = 15;
         options.path = String::from("./target");
         // test writing data
-        let write_result = write_sstables(&options, &data);
+        let write_result = write_sstable(&options, &data);
         print!("{:?}", write_result);
         assert!(write_result.is_ok());
         // read data from path

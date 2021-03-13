@@ -1,9 +1,8 @@
 pub mod basic;
-pub mod sparse_index;
 
 use crate::errors::Errors;
-use crate::storage::compaction::sparse_index::SparseIndex;
 use std::fmt::Display;
+use std::path::PathBuf;
 
 /// Specifies the compaction strategy used to compact SSTables.
 pub enum CompactionStrategy {
@@ -17,5 +16,6 @@ pub trait Compaction {
     fn strategy(&self) -> CompactionStrategy;
 
     /// Method called to begin compaction process.
-    fn compact<K: Ord + Display + Clone>(&self) -> Result<SparseIndex<K>, Errors>;
+    /// Returns the path to the newly created SSTable / SSTables.
+    fn compact<K: Ord + Display + Clone>(&self) -> Result<Option<PathBuf>, Errors>;
 }

@@ -3,7 +3,8 @@ use crate::options::DharmaOpts;
 use crate::storage::compaction::basic::errors::CompactionErrors;
 use crate::storage::compaction::sparse_index::SparseIndex;
 use crate::storage::compaction::{Compaction, CompactionStrategy};
-use crate::storage::sorted_string_table::{SSTableReader, SSTableValue};
+use crate::storage::sorted_string_table_writer::{SSTableReader, SSTableValue};
+use crate::storage::sorted_string_table_reader::SSTableReader;
 use bincode::options;
 use std::cmp::Ordering;
 use std::fs::{read_dir, File};
@@ -41,7 +42,8 @@ impl Compaction for BasicCompaction {
         CompactionStrategy::BASIC
     }
 
-    fn compact<K: Ord, V>(&self) -> Result<Option<SparseIndex<K>>, CompactionErrors> {
+    fn compact<K: Ord, V>(&self) -> Result<Option<PathBuf>, CompactionErrors> {
+        let mut count: u64 = 0;
         let input_path = &self.options.input_path;
         // list all SSTables in the directory in sorted order
         let sstable_paths_result = SSTableReader::get_valid_table_paths(input_path);
@@ -98,6 +100,7 @@ impl Compaction for BasicCompaction {
                         }
                     }
                     if minimum_value.is_some() {
+                        count += 1;
                         // write the minimum value to output
                         output_sstable_handle.write(&minimum_value.as_ref().unwrap().data);
                         // advance offset of table with minimum value
@@ -111,8 +114,7 @@ impl Compaction for BasicCompaction {
                         break;
                     }
                 }
-                // TODO: sample data in SSTable and create Sparse index
-                return Ok(None);
+                return Ok(Some(PathBuf::from(&self.options.output_path)));
             }
             return Err(CompactionErrors::INVALID_COMPACTION_OUTPUT_PATH);
         }

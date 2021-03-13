@@ -11,8 +11,7 @@ impl CompactionErrors {
     pub fn value(&self) -> &'static str {
         match self {
             CompactionErrors::INVALID_COMPACTION_INPUT_PATH => {
-                "Could not read SSTables from the \
-            supplied path"
+                "Could not read SSTables from the supplied path"
             }
             CompactionErrors::INVALID_COMPACTION_OUTPUT_PATH => {
                 "Could not write SSTables to the supplied path"

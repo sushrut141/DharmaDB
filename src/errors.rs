@@ -9,6 +9,8 @@ pub enum Errors {
     DB_NO_SUCH_KEY,
     DB_WRITE_FAILED,
     DB_DELETE_FAILED,
+    DB_INDEX_INITIALIZATION_FAILED,
+    DB_INDEX_UPDATE_FAILED,
     SSTABLE_CREATION_FAILED,
     SSTABLE_READ_FAILED,
     WAL_WRITE_FAILED,
@@ -30,6 +32,8 @@ impl Errors {
             Errors::SSTABLE_CREATION_FAILED => "Could not create SSTable on disk.",
             Errors::SSTABLE_READ_FAILED => "Failed to read SSTable from disk.",
             Errors::WAL_WRITE_FAILED => "Write Ahead Log write failed.",
+            Errors::DB_INDEX_INITIALIZATION_FAILED => "Failed to initialize sparse index for DB",
+            Errors::DB_INDEX_UPDATE_FAILED => "Failed to update the DB index during memtable flush"
         }
     }
 }
