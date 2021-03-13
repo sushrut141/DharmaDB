@@ -6,12 +6,12 @@ pub struct DharmaOpts {
     pub path: String,
     /// Threshold for memtable size. If size exceeds this then memtable will be
     /// flushed to disk.
-    pub memtable_size_in_bytes: usize,
+    pub memtable_size_in_bytes: u64,
     /// block size in bytes
-    pub block_size_in_bytes: usize,
+    pub block_size_in_bytes: u64,
     /// number of blocks in an SSTable
     /// This field will be deprecated after we introduced variable sized SSTables
-    pub blocks_per_sstable: usize,
+    pub blocks_per_sstable: u64,
 }
 
 impl DharmaOpts {

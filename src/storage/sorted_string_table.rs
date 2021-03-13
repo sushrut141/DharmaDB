@@ -5,9 +5,9 @@ use log;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::fs::File;
+use std::fs::{read_dir, File};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Deserialize)]
 pub struct Value<K, V> {
@@ -50,12 +50,12 @@ struct Record {
 * are required to store metadata about the record like
 * record type (START, MIDDLE, PADDING..), size etc.
 */
-const RECORD_BASE_SIZE_IN_BYTES: usize = 3;
+const RECORD_BASE_SIZE_IN_BYTES: u64 = 3;
 
 impl Record {
     /// Create a record that will be used to pad leftover space
     /// within a block. Padding records don't contain any data.
-    fn as_padding(size: u16) -> Record {
+    fn with_padding(size: u16) -> Record {
         Record {
             record_type: RecordType::PADDING,
             data_size_in_bytes: size,
@@ -85,6 +85,203 @@ impl Block {
     }
 }
 
+pub struct SSTableValue<K, V> {
+    pub value: Value<K, V>,
+    pub data: Vec<u8>,
+}
+
+pub struct SSTableReader {
+    // The offset at  which to read values from the SSTable
+    offset: u64,
+    // total size of the SSTable
+    size: u64,
+    // data buffered from the current bllck being read
+    buffer: Vec<u8>,
+    // offset within the current buffer
+    buffer_offset: u64,
+    // the size of blocks in this SSTable
+    block_size: u64,
+    // the reader to read data in blocks
+    reader: BufOffsetReader<File>,
+}
+
+impl SSTableReader {
+    pub fn from(path: &PathBuf, block_size: u64) -> Result<SSTableReader, Errors> {
+        let file_result = File::open(path);
+        if file_result.is_ok() {
+            let file = file_result.unwrap();
+            let size = file.metadata().unwrap().len();
+            let mut reader = BufOffsetReader::new(file);
+            let mut buffer = vec![0u8, block_size];
+            reader.read_at(&mut buffer, 0);
+            return Ok(SSTableReader {
+                block_size,
+                buffer,
+                buffer_offset: 0,
+                offset: 0,
+                size,
+                reader,
+            });
+        }
+        return Err(Errors::SSTABLE_READ_FAILED);
+    }
+
+    pub fn get_valid_table_paths(input_path: &String) -> Result<Vec<PathBuf>, Errors> {
+        let read_dir_result = read_dir(input_path);
+        if read_dir_result.is_ok() {
+            let read_dir = read_dir_result.unwrap();
+            let mut output = Vec::new();
+            for path_result in read_dir {
+                if let Ok(dir_entry) = path_result {
+                    if dir_entry.path().ends_with(".db") {
+                        output.push(dir_entry.path());
+                    }
+                }
+            }
+            output.sort();
+            Ok(output)
+        }
+        Err(Errors::SSTABLE_READ_FAILED)
+    }
+
+    /// Read the value at the current offset.
+    pub fn read<K: DeserializeOwned, V: DeserializeOwned>(&mut self) -> SSTableValue<K, V> {
+        let buffer = &self.buffer;
+        let record_type = buffer[self.buffer_offset] as RecordType;
+        let mut previous_buffer_offset = self.buffer_offset;
+        let mut previous_offset = self.offset;
+        loop {
+            let mut temp_buffer = Vec::new();
+            match record_type {
+                RecordType::PADDING => {
+                    self.load_next_block();
+                }
+                RecordType::COMPLETE => {
+                    let upper_byte = buffer[self.buffer_offset + 1] as u16;
+                    let lower_byte = buffer[self.buffer_offset + 2] as u16;
+                    let size = upper_byte << 8 | lower_byte;
+                    self.buffer_offset += 3;
+                    let data_bytes = self.buffer[self.buffer_offset..(self.buffer_offset + size)];
+                    let record: Value<K, V> = bincode::deserialize(data_bytes).unwrap();
+                    let mut data_copy = vec![0u8, size];
+                    for val in data_bytes {
+                        data_copy.push(val);
+                    }
+                    self.offset = previous_offset;
+                    self.buffer_offset = previous_buffer_offset;
+                    return SSTableValue {
+                        value: record,
+                        data: data_copy,
+                    };
+                }
+                RecordType::START | RecordType::MIDDLE => {
+                    let upper_byte = buffer[self.buffer_offset + 1] as u16;
+                    let lower_byte = buffer[self.buffer_offset + 2] as u16;
+                    let size = upper_byte << 8 | lower_byte;
+                    self.buffer_offset += 3;
+                    for val in self.buffer[self.buffer_offset..(self.buffer_offset + size)] {
+                        temp_buffer.push(val);
+                    }
+                    self.buffer_offset += size;
+                    // load the next block
+                    self.load_next_block();
+                }
+                RecordType::END => {
+                    let upper_byte = buffer[self.buffer_offset + 1] as u16;
+                    let lower_byte = buffer[self.buffer_offset + 2] as u16;
+                    let size = upper_byte << 8 | lower_byte;
+                    self.buffer_offset += 3;
+                    for val in self.buffer[self.buffer_offset..(self.buffer_offset + size)] {
+                        temp_buffer.push(val);
+                    }
+                    self.buffer_offset += size;
+                    let record: Value<K, V> = bincode::deserialize(temp_buffer.as_slice()).unwrap();
+                    // reset buffer and offset to previous state
+                    self.load_block_at(previous_offset);
+                    self.buffer_offset = previous_buffer_offset;
+                    return SSTableValue {
+                        value: record,
+                        data: temp_buffer,
+                    };
+                }
+            }
+        }
+    }
+
+    /// Read the value at the specified offset.
+    pub fn read_at(&self, offset: u64) -> SSTableValue<K, V> {}
+
+    /// Check whether more values can be processed in the SSTable.
+    pub fn has_next(&self) -> bool {
+        let record_type = self.buffer[self.buffer_offset] as RecordType;
+        let buffer = &self.buffer;
+        return match record_type {
+            RecordType::PADDING => {
+                if self.size - self.offset <= RECORD_BASE_SIZE_IN_BYTES {
+                    return false;
+                }
+                let upper_byte = buffer[self.buffer_offset + 1] as u16;
+                let lower_byte = buffer[self.buffer_offset + 2] as u16;
+                let size = upper_byte << 8 | lower_byte;
+                return self.offset + size < self.size;
+            }
+            _ => true,
+        };
+    }
+
+    /// Advance the offset to the next value in the SSTable.
+    /// This method should only be called if `has_next` returns `true`.
+    pub fn next(&mut self) {
+        loop {
+            let buffer = &self.buffer;
+            let record_type = self.buffer[self.buffer_offset] as RecordType;
+            match record_type {
+                // check if this is the last block in table before loading next block
+                RecordType::PADDING => {
+                    self.load_next_block();
+                }
+                RecordType::COMPLETE => {
+                    let upper_byte = buffer[self.buffer_offset + 1] as u16;
+                    let lower_byte = buffer[self.buffer_offset + 2] as u16;
+                    self.buffer_offset += 3;
+                    let size = upper_byte << 8 | lower_byte;
+                    self.buffer_offset += size;
+                    if self.buffer_offset == self.block_size {
+                        self.load_next_block();
+                    }
+                    break;
+                }
+                RecordType::START | RecordType::MIDDLE => {
+                    self.load_next_block();
+                }
+                RecordType::END => {
+                    let upper_byte = buffer[self.buffer_offset + 1] as u16;
+                    let lower_byte = buffer[self.buffer_offset + 2] as u16;
+                    self.buffer_offset += 3;
+                    let size = upper_byte << 8 | lower_byte;
+                    self.buffer_offset += size;
+                    if self.buffer_offset == self.block_size {
+                        self.load_next_block();
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    fn load_next_block(&mut self) {
+        self.load_block_at(self.offset + self.block_size);
+    }
+
+    fn load_block_at(&mut self, offset: u64) {
+        let mut buffer = vec![0u8, self.block_size];
+        self.offset = offset;
+        self.buffer_offset = 0;
+        self.reader.read_at(&mut buffer, self.offset);
+        self.buffer = buffer;
+    }
+}
+
 /// Write the list of key value pairs, sorted by key to a series of SSTables on disk.
 /// # Arguments
 /// * _option_  - Configurations options specified as `DharmaOpts`
@@ -110,7 +307,11 @@ pub fn write_sstables<K: Clone + Serialize, V: Clone + Serialize>(
     create_blocks(options, &values, &mut blocks);
     // spilt the blocks into chunks of n blocks
     // each chunk of n blocks will be written to an SSTable file
-    let block_chunks = blocks.chunks(options.blocks_per_sstable);
+    // TODO: data in a record shouldn't be split across SSTable since it makes compaction very
+    // complicated. We will try to respect blocks per table but if a table end in a partial record
+    // then the number of blocks will be adjusted to ensure each table ends with a complete block.
+    // we may need to add additional metadata to a block to know if it ends in a partial record.
+    let block_chunks = blocks.chunks(options.blocks_per_sstable as usize);
     let mut block_counter = 0;
     for chunk in block_chunks {
         // write this chunk to disk
@@ -171,7 +372,7 @@ pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
         // buffer to accumulate data from records split across multiple blocks
         let mut record_byte_buffer = Vec::new();
         while i < block_count {
-            let mut buffer = vec![0u8; options.block_size_in_bytes];
+            let mut buffer = vec![0u8; options.block_size_in_bytes as usize];
             // read blocksize number of bytes
             // TODO: handle read error
             reader.read_at(&mut buffer, i * options.block_size_in_bytes as u64);
@@ -183,7 +384,7 @@ pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
                     // padding record
                     0 => {
                         let remaining = buffer.len() - r;
-                        if remaining <= RECORD_BASE_SIZE_IN_BYTES {
+                        if remaining as u64 <= RECORD_BASE_SIZE_IN_BYTES {
                             r += remaining;
                         } else {
                             let upper_size_byte = buffer[r + 1] as u16;
@@ -254,7 +455,7 @@ fn create_blocks<K: Serialize, V: Serialize>(
     block_vec: &mut Vec<Block>,
 ) {
     let mut current_block = Block::new();
-    let mut available_memory_in_bytes = options.block_size_in_bytes;
+    let mut available_memory_in_bytes = options.block_size_in_bytes as u64;
     let mut i = 0;
     while i < values.len() {
         let val = &values[i];
@@ -263,7 +464,7 @@ fn create_blocks<K: Serialize, V: Serialize>(
         // encoded is an array of 8 bit integers (u8)
         // each value in the array takes a byte of memory
         // therefore size of array in bytes is the size of this record in bytes
-        let record_size = encoded.len();
+        let record_size = encoded.len() as u64;
         // each record needs at has a base size to hold
         let required_record_size = RECORD_BASE_SIZE_IN_BYTES + record_size;
         match available_memory_in_bytes.cmp(&required_record_size) {
@@ -327,7 +528,7 @@ fn create_blocks<K: Serialize, V: Serialize>(
                 } else {
                     // bytes to pad is available space minus 1 byte to store record type(PADDING)
                     let bytes_to_pad = available_memory_in_bytes - 1;
-                    let padding = Record::as_padding(bytes_to_pad as u16);
+                    let padding = Record::with_padding(bytes_to_pad as u16);
                     current_block.add(padding);
                     // create new block
                     block_vec.push(current_block);
@@ -404,14 +605,14 @@ fn write_block_to_sstable(
         }
     }
     // add an extra padding record if the block has space
-    if written_size_in_bytes < options.block_size_in_bytes {
+    if written_size_in_bytes < options.block_size_in_bytes as usize {
         let mut available_space_in_bytes = options.block_size_in_bytes - written_size_in_bytes;
         if available_space_in_bytes > RECORD_BASE_SIZE_IN_BYTES {
             // subtract one byte for record type specifier
             available_space_in_bytes -= RECORD_BASE_SIZE_IN_BYTES;
             let type_bytes: [u8; 1] = 0_i8.to_be_bytes();
             let size_bytes = available_space_in_bytes.to_be_bytes();
-            let mut padding: Vec<u8> = Vec::with_capacity(available_space_in_bytes);
+            let mut padding: Vec<u8> = Vec::with_capacity(available_space_in_bytes as usize);
             for _ in 0..available_space_in_bytes {
                 padding.push(0u8);
             }
@@ -420,7 +621,7 @@ fn write_block_to_sstable(
             file_handle.write(&size_bytes);
             file_handle.write(padding.as_slice());
         } else {
-            let mut padding: Vec<u8> = Vec::with_capacity(available_space_in_bytes);
+            let mut padding: Vec<u8> = Vec::with_capacity(available_space_in_bytes as usize);
             for _ in 0..available_space_in_bytes {
                 padding.push(0u8);
             }
