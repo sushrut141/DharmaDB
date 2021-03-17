@@ -1,8 +1,9 @@
 use crate::errors::Errors;
 use crate::options::DharmaOpts;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::path::Path;
 use std::io::{BufWriter, Write};
+use std::path::Path;
 
 #[derive(Serialize, Deserialize)]
 struct WALRecord<K, V> {
@@ -11,25 +12,19 @@ struct WALRecord<K, V> {
 }
 
 impl<K, V> WALRecord<K, V> {
-
     pub fn new(key: K, value: V) -> WALRecord<K, V> {
-        WALRecord {
-            key,
-            value,
-        }
+        WALRecord { key, value }
     }
 
     pub fn serialize(&self) -> Result<Vec<u8>, Errors> {
         let serialize_result = bincode::serialize(&self);
         serialize_result.map_err(|_| Errors::WAL_WRITE_FAILED)
     }
-
 }
 
 /// Represents the mutations occurring to the memtable persisted on disk.
 /// Used to backup the database in case of failure before memtable is flushed.
 pub struct WriteAheadLog<K, V> {
-
     log: BufWriter<File>,
 }
 
@@ -44,9 +39,7 @@ impl<K, V> WriteAheadLog<K, V> {
         let file = File::create(wal_path);
         if file.is_ok() {
             let writer = BufWriter::new(file.unwrap());
-            WriteAheadLog {
-                log: writer
-            }
+            WriteAheadLog { log: writer }
         }
         Err(Errors::DB_LOG_CREATION_FAILED)
     }

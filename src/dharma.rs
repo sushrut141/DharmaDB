@@ -20,7 +20,7 @@ pub struct Dharma<K, V> {
 
     memory: SkipList<K, V>,
 
-    persistence: Persistence<K, V>,
+    persistence: Persistence<K>,
 
     size: usize,
 }

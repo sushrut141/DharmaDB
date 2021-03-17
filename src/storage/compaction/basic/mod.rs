@@ -1,13 +1,8 @@
-use crate::errors::Errors;
-use crate::options::DharmaOpts;
 use crate::storage::compaction::basic::errors::CompactionErrors;
-use crate::storage::compaction::sparse_index::SparseIndex;
 use crate::storage::compaction::{Compaction, CompactionStrategy};
-use crate::storage::sorted_string_table_writer::{SSTableReader, SSTableValue};
 use crate::storage::sorted_string_table_reader::SSTableReader;
-use bincode::options;
 use std::cmp::Ordering;
-use std::fs::{read_dir, File};
+use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 

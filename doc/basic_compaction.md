@@ -61,16 +61,6 @@ Index as well. Eventually, these newly flushed tables are compacted into a
 single table, and the sparse index is updated.
 
 
-How do we abstract details about the sparse index, compaction from the main API?
-How do we make it easy to incorporate new Compaction Strategies?
-Can we do better than a linear scan when searching for value in SSTable?
-
-Compaction can write the sparse index to disk in binary. The persistence 
-layer should then swap the old SSTables with new SSTables and updated the 
-memory sparse index with the one written on disk.
-All read / writes should be blocked while this operation completes.
-
-
 
 
 

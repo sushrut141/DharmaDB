@@ -33,7 +33,7 @@ impl Errors {
             Errors::SSTABLE_READ_FAILED => "Failed to read SSTable from disk.",
             Errors::WAL_WRITE_FAILED => "Write Ahead Log write failed.",
             Errors::DB_INDEX_INITIALIZATION_FAILED => "Failed to initialize sparse index for DB",
-            Errors::DB_INDEX_UPDATE_FAILED => "Failed to update the DB index during memtable flush"
+            Errors::DB_INDEX_UPDATE_FAILED => "Failed to update the DB index during memtable flush",
         }
     }
 }

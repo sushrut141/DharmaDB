@@ -1,89 +1,14 @@
 use crate::errors::Errors;
 use crate::options::DharmaOpts;
+use crate::storage::block::{Block, Record, RecordType, Value};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};
 use log;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::cmp::Ordering;
-use std::fs::{read_dir, File};
+use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-
-#[derive(Serialize, Deserialize)]
-pub struct Value<K, V> {
-    pub key: K,
-    pub value: V,
-}
-
-impl<K, V> Value<K, V> {
-    pub fn new(key: K, value: V) -> Value<K, V> {
-        Value { key, value }
-    }
-}
-
-#[derive(Copy, Clone)]
-enum RecordType {
-    PADDING = 0,
-    COMPLETE = 1,
-    START = 2,
-    MIDDLE = 3,
-    END = 4,
-}
-
-// A Record represents the key, value and some metadata persisted to disk.
-// Records are written to disk as
-// ```
-// | type (1 byte )| size (2 bytes) | data - array of u8 of length size |
-// ```
-// The maximum size of a record is specified in `option.block_size_in_bytes`.
-struct Record {
-    // 1 bytes for record type
-    record_type: RecordType,
-    // 2 bytes for size
-    data_size_in_bytes: u16,
-    // can hold up to 32 kilobytes of data
-    data: Vec<u8>,
-}
-
-/**
-* The base number of bytes required to store a record. These bytes
-* are required to store metadata about the record like
-* record type (START, MIDDLE, PADDING..), size etc.
-*/
-const RECORD_BASE_SIZE_IN_BYTES: u64 = 3;
-
-impl Record {
-    /// Create a record that will be used to pad leftover space
-    /// within a block. Padding records don't contain any data.
-    fn with_padding(size: u16) -> Record {
-        Record {
-            record_type: RecordType::PADDING,
-            data_size_in_bytes: size,
-            data: Vec::new(),
-        }
-    }
-}
-
-/// A Block is the smallest unit of memory that is read from disk.
-/// Blocks are packed together to form SSTables which
-/// contain data stored in the database.
-/// Each block is composed of as many records as can fit in the block. If a record doesn't
-/// fit into a block then it is split across multiple blocks.
-struct Block {
-    records: Vec<Record>,
-}
-
-impl Block {
-    fn new() -> Block {
-        Block {
-            records: Vec::new(),
-        }
-    }
-
-    fn add(&mut self, record: Record) {
-        self.records.push(record);
-    }
-}
 
 /// Write the list of key value pairs, sorted by key to a series of SSTables on disk.
 /// # Arguments
@@ -97,7 +22,7 @@ impl Block {
 pub fn write_sstable<K: Clone + Serialize, V: Clone + Serialize>(
     options: &DharmaOpts,
     tuples: &Vec<(K, V)>,
-    table_number: usize
+    table_number: usize,
 ) -> Result<PathBuf, Errors> {
     let values: Vec<Value<K, V>> = tuples
         .iter()
@@ -117,7 +42,7 @@ pub fn write_sstable<K: Clone + Serialize, V: Clone + Serialize>(
     if file_result.is_ok() {
         let mut file = file_result.unwrap();
         // write all blocks to SSTable file
-        for block in blocks {
+        for (block_counter, block) in blocks.iter().enumerate() {
             let write_result = write_block_to_sstable(options, &mut file, &block);
             if write_result.is_err() {
                 log::error!(
@@ -128,7 +53,7 @@ pub fn write_sstable<K: Clone + Serialize, V: Clone + Serialize>(
             }
         }
     } else {
-        log::error!("Failed to create sstable from chunk {0}", block_counter);
+        log::error!("Failed to create SSTable from chunk from values");
         return Err(Errors::SSTABLE_CREATION_FAILED);
     }
     Ok(PathBuf::from(path_str))
@@ -177,7 +102,7 @@ pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
                     // padding record
                     0 => {
                         let remaining = buffer.len() - r;
-                        if remaining as u64 <= RECORD_BASE_SIZE_IN_BYTES {
+                        if remaining as u64 <= Record::RECORD_BASE_SIZE_IN_BYTES {
                             r += remaining;
                         } else {
                             let upper_size_byte = buffer[r + 1] as u16;
@@ -259,20 +184,20 @@ fn create_blocks<K: Serialize, V: Serialize>(
         // therefore size of array in bytes is the size of this record in bytes
         let record_size = encoded.len() as u64;
         // each record needs at has a base size to hold
-        let required_record_size = RECORD_BASE_SIZE_IN_BYTES + record_size;
+        let required_record_size = Record::RECORD_BASE_SIZE_IN_BYTES + record_size;
         match available_memory_in_bytes.cmp(&required_record_size) {
             // record will be broken into chunks
             Ordering::Less => {
                 // decoder should skip reading memory in block
-                // if leftover data is less than RECORD_BASE_SIZE_IN_BYTES
+                // if leftover data is less than Record::RECORD_BASE_SIZE_IN_BYTES
                 let mut record_offset = 0;
-                if available_memory_in_bytes > RECORD_BASE_SIZE_IN_BYTES {
+                if available_memory_in_bytes > Record::RECORD_BASE_SIZE_IN_BYTES {
                     // flag specifying whether we are processing the first chunk of record
                     let mut is_first_chunk = true;
                     // records are broken into chunks
                     // in each iteration of this loop we process one chunk
-                    while available_memory_in_bytes > RECORD_BASE_SIZE_IN_BYTES {
-                        available_memory_in_bytes -= RECORD_BASE_SIZE_IN_BYTES;
+                    while available_memory_in_bytes > Record::RECORD_BASE_SIZE_IN_BYTES {
+                        available_memory_in_bytes -= Record::RECORD_BASE_SIZE_IN_BYTES;
                         let mut record_type = RecordType::START;
                         if !is_first_chunk {
                             record_type = RecordType::MIDDLE;
@@ -400,9 +325,9 @@ fn write_block_to_sstable(
     // add an extra padding record if the block has space
     if written_size_in_bytes < options.block_size_in_bytes as usize {
         let mut available_space_in_bytes = options.block_size_in_bytes - written_size_in_bytes;
-        if available_space_in_bytes > RECORD_BASE_SIZE_IN_BYTES {
+        if available_space_in_bytes > Record::RECORD_BASE_SIZE_IN_BYTES {
             // subtract one byte for record type specifier
-            available_space_in_bytes -= RECORD_BASE_SIZE_IN_BYTES;
+            available_space_in_bytes -= Record::RECORD_BASE_SIZE_IN_BYTES;
             let type_bytes: [u8; 1] = 0_i8.to_be_bytes();
             let size_bytes = available_space_in_bytes.to_be_bytes();
             let mut padding: Vec<u8> = Vec::with_capacity(available_space_in_bytes as usize);

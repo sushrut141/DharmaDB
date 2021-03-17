@@ -1,10 +1,10 @@
 use crate::errors::Errors;
-use crate::storage::sorted_string_table_writer::Value;
+use crate::storage::block::{Record, RecordType, Value};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};
 use serde::de::DeserializeOwned;
+use std::cmp::Ordering;
 use std::fs::{read_dir, File};
 use std::path::PathBuf;
-use std::cmp::Ordering;
 
 pub struct SSTableValue<K, V> {
     // key, value stored in the SSTable
@@ -175,7 +175,7 @@ impl SSTableReader {
         let buffer = &self.buffer;
         return match record_type {
             RecordType::PADDING => {
-                if self.size - self.offset <= RECORD_BASE_SIZE_IN_BYTES {
+                if self.size - self.offset <= Record::RECORD_BASE_SIZE_IN_BYTES {
                     return false;
                 }
                 let upper_byte = buffer[self.buffer_offset + 1] as u16;

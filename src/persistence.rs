@@ -2,34 +2,31 @@ use crate::errors::Errors;
 use crate::options::DharmaOpts;
 use crate::sparse_index::{SparseIndex, TableAddress};
 use crate::storage::sorted_string_table_reader::{SSTableReader, SSTableValue};
+use crate::storage::sorted_string_table_writer::write_sstable;
 use std::fmt::Display;
 use std::path::PathBuf;
-use bincode::options;
-use crate::storage::sorted_string_table_writer::write_sstable;
 
 pub trait Persist: Clone + Display + Ord {}
 
 /// Encapsulates all functionality that involves reading
 /// and writing to File System.
-pub struct Persistence<K, V> {
+pub struct Persistence<K> {
     options: DharmaOpts,
     index: SparseIndex<K>,
 }
 
-impl<K, V> Persistence<K, V>
+impl<K, V> Persistence<K>
 where
     K: Persist,
     V: Persist,
 {
-    pub fn create(options: DharmaOpts) -> Result<Persistence<K, V>, Errors> {
+    pub fn create(options: DharmaOpts) -> Result<Persistence<K>, Errors> {
         // read all SSTables and create the sparse index
-        let sstable_paths =
-            SSTableReader::get_valid_table_paths(&options.path)?;
+        let sstable_paths = SSTableReader::get_valid_table_paths(&options.path)?;
         // read through each SSTable and create the sparse index on startup
         let mut index = SparseIndex::new();
         for path in sstable_paths {
-            let load_result =
-                Persistence::populate_index_from_path(&options, &path, &mut index);
+            let load_result = Persistence::populate_index_from_path(&options, &path, &mut index);
             if load_result.is_err() {
                 return Err(Errors::DB_INDEX_INITIALIZATION_FAILED);
             }
@@ -42,8 +39,7 @@ where
         let maybe_address = self.index.get_nearest_address(key);
         if maybe_address.is_some() {
             let address = maybe_address.unwrap();
-            let mut reader =
-                SSTableReader::from(&address.path, self.options.block_size_in_bytes)?;
+            let mut reader = SSTableReader::from(&address.path, self.options.block_size_in_bytes)?;
             return Ok(reader.find_from_offset(address.offset, key));
         }
         Ok(None)
@@ -58,20 +54,15 @@ where
 
     pub fn flush(&mut self, values: &Vec<(K, V)>) -> Result<(), Errors> {
         // get the existing SSTable paths
-        let paths =
-            SSTableReader::get_valid_table_paths(&self.options.path)?;
-        let flush_result = write_sstable(
-            &self.options,
-            values,
-            paths.len(),
-        );
+        let paths = SSTableReader::get_valid_table_paths(&self.options.path)?;
+        let flush_result = write_sstable(&self.options, values, paths.len());
         if flush_result.is_ok() {
             let new_sstable_path = flush_result.unwrap();
             //TODO: clear WAL log here
             let index_update_result = Persistence::populate_index_from_path(
                 &self.options,
                 &new_sstable_path,
-                &mut self.index
+                &mut self.index,
             );
             if index_update_result.is_err() {
                 return Err(Errors::DB_INDEX_UPDATE_FAILED);
