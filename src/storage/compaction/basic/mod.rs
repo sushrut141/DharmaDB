@@ -1,6 +1,8 @@
-use crate::storage::compaction::basic::errors::CompactionErrors;
-use crate::storage::compaction::{Compaction, CompactionStrategy};
+use crate::storage::block::Value;
+use crate::storage::compaction::basic::errors::{CompactionError, CompactionErrors};
+use crate::storage::compaction::CompactionStrategy;
 use crate::storage::sorted_string_table_reader::SSTableReader;
+use crate::traits::{ResourceKey, ResourceValue};
 use std::cmp::Ordering;
 use std::fs::File;
 use std::io::Write;
@@ -13,6 +15,8 @@ pub struct BasicCompactionOpts {
     input_path: String,
     /// Path at which to write output SSTables
     output_path: String,
+    /// Block Size for blocks in SSTable.
+    block_size: usize,
     /// Number of SSTables at input path after which compaction is run to
     /// merge the SSTables into a single table.
     threshold: u8,
@@ -32,12 +36,14 @@ impl BasicCompaction {
     }
 }
 
-impl Compaction for BasicCompaction {
+impl BasicCompaction {
     fn strategy(&self) -> CompactionStrategy {
         CompactionStrategy::BASIC
     }
 
-    fn compact<K: Ord, V>(&self) -> Result<Option<PathBuf>, CompactionErrors> {
+    fn compact<K: ResourceKey, V: ResourceValue>(
+        &self,
+    ) -> Result<Option<PathBuf>, CompactionError> {
         let mut count: u64 = 0;
         let input_path = &self.options.input_path;
         // list all SSTables in the directory in sorted order
@@ -49,7 +55,7 @@ impl Compaction for BasicCompaction {
             }
             let mut sstables: Vec<SSTableReader> = paths
                 .iter()
-                .map(SSTableReader::from)
+                .map(|path| SSTableReader::from(path, self.options.block_size))
                 .map(Result::unwrap)
                 .collect();
             // create new SSTable at output path
@@ -58,23 +64,22 @@ impl Compaction for BasicCompaction {
             if output_sstable_result.is_ok() {
                 let size = sstables.len();
                 let mut output_sstable_handle = output_sstable_result.unwrap();
-                let mut minimum_value = Some(sstables[0].read());
+                let mut minimum_value: Option<Value<K, V>> =
+                    Some(sstables[0].read().to_record().unwrap());
                 let mut minimum_idx = 0;
-                let mut valid = vec![true, size];
+                let mut valid: Vec<bool> = Vec::with_capacity(size);
                 loop {
                     for i in 0..size {
                         if valid[i] {
                             let current = sstables[i].read();
+                            let current_value: Value<K, V> = current.to_record().unwrap();
                             if minimum_value.is_none() {
-                                minimum_value = Some(sstables[i].read());
+                                minimum_value =
+                                    Some(sstables[i].read().to_record::<K, V>().unwrap());
                             }
-                            match current
-                                .value
-                                .key
-                                .cmp(&minimum_value.as_ref().unwrap().value.key)
-                            {
+                            match current_value.key.cmp(&minimum_value.as_ref().unwrap().key) {
                                 Ordering::Less => {
-                                    minimum_value = Some(current);
+                                    minimum_value = Some(current_value);
                                     minimum_idx = i;
                                 }
                                 // same key appears in another SSTable that is more recent
@@ -85,7 +90,7 @@ impl Compaction for BasicCompaction {
                                     } else {
                                         valid[minimum_idx] = false;
                                     }
-                                    minimum_value = Some(current);
+                                    minimum_value = Some(current_value);
                                     minimum_idx = i;
                                 }
                                 Ordering::Greater => {
@@ -97,7 +102,9 @@ impl Compaction for BasicCompaction {
                     if minimum_value.is_some() {
                         count += 1;
                         // write the minimum value to output
-                        output_sstable_handle.write(&minimum_value.as_ref().unwrap().data);
+                        let minimum = minimum_value.as_ref().unwrap();
+                        let mininum_value_data = bincode::serialize(minimum).unwrap();
+                        output_sstable_handle.write(mininum_value_data.as_slice());
                         // advance offset of table with minimum value
                         if sstables[minimum_idx].has_next() {
                             sstables[minimum_idx].next();
@@ -111,8 +118,12 @@ impl Compaction for BasicCompaction {
                 }
                 return Ok(Some(PathBuf::from(&self.options.output_path)));
             }
-            return Err(CompactionErrors::INVALID_COMPACTION_OUTPUT_PATH);
+            return Err(CompactionError::with(
+                CompactionErrors::INVALID_COMPACTION_OUTPUT_PATH,
+            ));
         }
-        Err(CompactionErrors::INVALID_COMPACTION_INPUT_PATH)
+        Err(CompactionError::with(
+            CompactionErrors::INVALID_COMPACTION_INPUT_PATH,
+        ))
     }
 }

@@ -1,4 +1,5 @@
 /// Configuration properties used to initialize a database instance.
+#[derive(Clone)]
 pub struct DharmaOpts {
     /// Flag specifying whether to bootstrap database from existing store if data has already been persisted at that path.
     pub bootstrap: bool,
@@ -8,7 +9,7 @@ pub struct DharmaOpts {
     /// flushed to disk.
     pub memtable_size_in_bytes: usize,
     /// block size in bytes
-    pub block_size_in_bytes: u64,
+    pub block_size_in_bytes: usize,
     /// number of blocks in an SSTable
     /// This field will be deprecated after we introduced variable sized SSTables
     pub blocks_per_sstable: u64,

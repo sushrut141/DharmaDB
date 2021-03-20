@@ -1,3 +1,4 @@
+use crate::traits::{ResourceKey, ResourceValue};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -6,7 +7,11 @@ pub struct Value<K, V> {
     pub value: V,
 }
 
-impl<K, V> Value<K, V> {
+impl<K, V> Value<K, V>
+where
+    K: ResourceKey,
+    V: ResourceValue,
+{
     pub fn new(key: K, value: V) -> Value<K, V> {
         Value { key, value }
     }
@@ -19,6 +24,19 @@ pub enum RecordType {
     START = 2,
     MIDDLE = 3,
     END = 4,
+    UNKNOWN = 5,
+}
+
+/// Map a unsigned byte to a Record Type.
+pub fn to_record_type(val: u8) -> RecordType {
+    return match val {
+        0 => RecordType::PADDING,
+        1 => RecordType::COMPLETE,
+        2 => RecordType::START,
+        3 => RecordType::MIDDLE,
+        4 => RecordType::END,
+        _ => RecordType::UNKNOWN
+    }
 }
 
 /// A Record represents the key, value and some metadata persisted to disk.
@@ -41,7 +59,7 @@ pub struct Record {
 impl Record {
     /// The base size in bytes required to store metadata associated with Record like
     /// record type and size.
-    pub const RECORD_BASE_SIZE_IN_BYTES: u64 = 3;
+    pub const RECORD_BASE_SIZE_IN_BYTES: usize = 3;
 
     /// Create a record that will be used to pad leftover space
     /// within a block. Padding records don't contain any data.

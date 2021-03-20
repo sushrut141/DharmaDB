@@ -1,32 +1,32 @@
 use crate::errors::Errors;
 use crate::options::DharmaOpts;
 use crate::sparse_index::{SparseIndex, TableAddress};
+use crate::storage::block::Value;
 use crate::storage::sorted_string_table_reader::{SSTableReader, SSTableValue};
 use crate::storage::sorted_string_table_writer::write_sstable;
-use std::fmt::Display;
+use crate::traits::{ResourceKey, ResourceValue};
 use std::path::PathBuf;
-
-pub trait Persist: Clone + Display + Ord {}
+use std::cmp::Ordering;
 
 /// Encapsulates all functionality that involves reading
 /// and writing to File System.
-pub struct Persistence<K> {
+pub struct Persistence<K: ResourceKey> {
     options: DharmaOpts,
     index: SparseIndex<K>,
 }
 
-impl<K, V> Persistence<K>
+impl<K> Persistence<K>
 where
-    K: Persist,
-    V: Persist,
+    K: ResourceKey,
 {
-    pub fn create(options: DharmaOpts) -> Result<Persistence<K>, Errors> {
+    pub fn create<V: ResourceValue>(options: DharmaOpts) -> Result<Persistence<K>, Errors> {
         // read all SSTables and create the sparse index
         let sstable_paths = SSTableReader::get_valid_table_paths(&options.path)?;
         // read through each SSTable and create the sparse index on startup
         let mut index = SparseIndex::new();
         for path in sstable_paths {
-            let load_result = Persistence::populate_index_from_path(&options, &path, &mut index);
+            let load_result =
+                Persistence::populate_index_from_path::<V>(&options, &path, &mut index);
             if load_result.is_err() {
                 return Err(Errors::DB_INDEX_INITIALIZATION_FAILED);
             }
@@ -34,32 +34,53 @@ where
         Ok(Persistence { options, index })
     }
 
-    pub fn get(&mut self, key: &K) -> Result<Option<V>, Errors> {
+    pub fn get<V: ResourceValue>(&mut self, key: &K) -> Result<Option<V>, Errors> {
         // read SSTables and return the value is present
         let maybe_address = self.index.get_nearest_address(key);
         if maybe_address.is_some() {
             let address = maybe_address.unwrap();
             let mut reader = SSTableReader::from(&address.path, self.options.block_size_in_bytes)?;
-            return Ok(reader.find_from_offset(address.offset, key));
+            // try to find the value in the sstable
+            let seek_result = reader.seek_closest(address.offset);
+            // if seek offset is invalid then return errror
+            // this should never happen as long as SSTables and Sparse Index are in sync
+            if seek_result.is_ok() {
+                while reader.has_next() {
+                    let sstable_value = reader.read();
+                    let record =
+                        bincode::deserialize::<Value<K, V>>(&sstable_value.data).unwrap();
+                    match record.key.cmp(key) {
+                        Ordering::Less => {
+                            reader.next();
+                        }
+                        Ordering::Equal => {
+                            return Ok(Some(record.value));
+                        }
+                        Ordering::Greater => {
+                            return Ok(None);
+                        }
+                    }
+                }
+            }
         }
         Ok(None)
     }
 
-    pub fn insert(&mut self, key: K, value: V) -> Result<(), Errors> {
+    pub fn insert<V: ResourceValue>(&mut self, key: K, value: V) -> Result<(), Errors> {
         // write to Write Ahead Log
         let a = key;
         let b = value;
         Ok(())
     }
 
-    pub fn flush(&mut self, values: &Vec<(K, V)>) -> Result<(), Errors> {
+    pub fn flush<V: ResourceValue>(&mut self, values: &Vec<(K, V)>) -> Result<(), Errors> {
         // get the existing SSTable paths
         let paths = SSTableReader::get_valid_table_paths(&self.options.path)?;
         let flush_result = write_sstable(&self.options, values, paths.len());
         if flush_result.is_ok() {
             let new_sstable_path = flush_result.unwrap();
             //TODO: clear WAL log here
-            let index_update_result = Persistence::populate_index_from_path(
+            let index_update_result = Persistence::populate_index_from_path::<V>(
                 &self.options,
                 &new_sstable_path,
                 &mut self.index,
@@ -77,7 +98,7 @@ where
         unimplemented!()
     }
 
-    fn populate_index_from_path(
+    fn populate_index_from_path<V: ResourceValue>(
         options: &DharmaOpts,
         path: &PathBuf,
         index: &mut SparseIndex<K>,
@@ -88,9 +109,11 @@ where
             let mut reader = maybe_reader.unwrap();
             while reader.has_next() {
                 if counter % options.sparse_index_sampling_rate == 0 {
-                    let record: SSTableValue<K, V> = reader.read();
-                    let key = record.value.key;
-                    let offset = record.offset;
+                    let sstable_value: SSTableValue = reader.read();
+                    let record: Value<K, V> =
+                        bincode::deserialize(sstable_value.data.as_slice()).unwrap();
+                    let key = record.key;
+                    let offset = sstable_value.offset;
                     let address = TableAddress::new(path, offset);
                     index.update(key.clone(), address);
                 }

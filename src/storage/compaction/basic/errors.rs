@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
 #[allow(non_camel_case_types)]
@@ -20,14 +21,28 @@ impl CompactionErrors {
     }
 }
 
-impl Display for CompactionErrors {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value())
+pub struct CompactionError(CompactionErrors);
+
+impl CompactionError {
+    pub fn with(error_type: CompactionErrors) -> CompactionError {
+        CompactionError(error_type)
     }
 }
 
-impl Debug for CompactionErrors {
+impl Display for CompactionError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value())
+        match self {
+            error_type => write!(f, "{}", error_type),
+        }
     }
 }
+
+impl Debug for CompactionError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            error_type => write!(f, "{}", error_type),
+        }
+    }
+}
+
+impl Error for CompactionError {}

@@ -3,16 +3,17 @@ use std::path::PathBuf;
 use subway::skiplist::SkipList;
 
 /// Represents the location of a key within an SSTable.
+#[derive(Clone)]
 pub struct TableAddress {
     /// The path to the SSTable at which the target key exists.
     pub path: PathBuf,
     /// The byte offset into the SSTable at which to start
     /// reading for the target key.
-    pub offset: u64,
+    pub offset: usize,
 }
 
 impl TableAddress {
-    pub fn new(path: &PathBuf, offset: u64) -> TableAddress {
+    pub fn new(path: &PathBuf, offset: usize) -> TableAddress {
         TableAddress {
             path: path.clone(),
             offset,

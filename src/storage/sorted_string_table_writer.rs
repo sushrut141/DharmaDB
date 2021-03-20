@@ -1,10 +1,10 @@
 use crate::errors::Errors;
 use crate::options::DharmaOpts;
 use crate::storage::block::{Block, Record, RecordType, Value};
+use crate::traits::{ResourceKey, ResourceValue};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};
 use log;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
 use std::cmp::Ordering;
 use std::fs::File;
 use std::io::Write;
@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 /// A `Result` which is
 /// - `Ok`: - Empty value
 /// - `Err`: - Error type as specified by `Errors` module
-pub fn write_sstable<K: Clone + Serialize, V: Clone + Serialize>(
+pub fn write_sstable<K: ResourceKey, V: ResourceValue>(
     options: &DharmaOpts,
     tuples: &Vec<(K, V)>,
     table_number: usize,
@@ -61,6 +61,7 @@ pub fn write_sstable<K: Clone + Serialize, V: Clone + Serialize>(
 
 /// Read the SSTable at the specified path and return the data persisted in it
 /// as a `Vec` of `Value<K, V>`.
+/// TODO(@deprecated) - Use SSTableReader instead.
 ///
 /// # Arguments
 /// * _option_ - Configuration options specified as `DharmaOpts`
@@ -102,7 +103,7 @@ pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
                     // padding record
                     0 => {
                         let remaining = buffer.len() - r;
-                        if remaining as u64 <= Record::RECORD_BASE_SIZE_IN_BYTES {
+                        if remaining <= Record::RECORD_BASE_SIZE_IN_BYTES {
                             r += remaining;
                         } else {
                             let upper_size_byte = buffer[r + 1] as u16;
@@ -167,13 +168,13 @@ pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
     Err(Errors::SSTABLE_READ_FAILED)
 }
 
-fn create_blocks<K: Serialize, V: Serialize>(
+fn create_blocks<K: ResourceKey, V: ResourceValue>(
     options: &DharmaOpts,
     values: &Vec<Value<K, V>>,
     block_vec: &mut Vec<Block>,
 ) {
     let mut current_block = Block::new();
-    let mut available_memory_in_bytes = options.block_size_in_bytes as u64;
+    let mut available_memory_in_bytes = options.block_size_in_bytes;
     let mut i = 0;
     while i < values.len() {
         let val = &values[i];
@@ -182,7 +183,7 @@ fn create_blocks<K: Serialize, V: Serialize>(
         // encoded is an array of 8 bit integers (u8)
         // each value in the array takes a byte of memory
         // therefore size of array in bytes is the size of this record in bytes
-        let record_size = encoded.len() as u64;
+        let record_size = encoded.len();
         // each record needs at has a base size to hold
         let required_record_size = Record::RECORD_BASE_SIZE_IN_BYTES + record_size;
         match available_memory_in_bytes.cmp(&required_record_size) {

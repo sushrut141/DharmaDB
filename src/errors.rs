@@ -13,7 +13,10 @@ pub enum Errors {
     DB_INDEX_UPDATE_FAILED,
     SSTABLE_CREATION_FAILED,
     SSTABLE_READ_FAILED,
+    SSTABLE_INVALID_READ_OFFSET,
     WAL_WRITE_FAILED,
+    RECORD_SERIALIZATION_FAILED,
+    RECORD_DESERIALIZATION_FAILED,
 }
 
 impl Errors {
@@ -31,9 +34,14 @@ impl Errors {
             Errors::DB_DELETE_FAILED => "Could not delete entry from database.",
             Errors::SSTABLE_CREATION_FAILED => "Could not create SSTable on disk.",
             Errors::SSTABLE_READ_FAILED => "Failed to read SSTable from disk.",
+            Errors::SSTABLE_INVALID_READ_OFFSET => "Invalid read offset supplied to SSTable",
             Errors::WAL_WRITE_FAILED => "Write Ahead Log write failed.",
-            Errors::DB_INDEX_INITIALIZATION_FAILED => "Failed to initialize sparse index for DB",
-            Errors::DB_INDEX_UPDATE_FAILED => "Failed to update the DB index during memtable flush",
+            Errors::DB_INDEX_INITIALIZATION_FAILED => "Failed to initialize sparse index for DB.",
+            Errors::DB_INDEX_UPDATE_FAILED => {
+                "Failed to update the DB index during memtable flush."
+            }
+            Errors::RECORD_SERIALIZATION_FAILED => "Failed to serialize record.",
+            Errors::RECORD_DESERIALIZATION_FAILED => "Failed to deserialize record.",
         }
     }
 }

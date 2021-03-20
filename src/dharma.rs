@@ -1,11 +1,11 @@
 use core::mem::size_of;
-use std::fmt::Display;
 
 use subway::skiplist::SkipList;
 
 use crate::errors::Errors;
 use crate::options::DharmaOpts;
 use crate::persistence::Persistence;
+use crate::traits::{ResourceKey, ResourceValue};
 
 /// Represents the database interface using which data can be persisted and retrieved.
 ///
@@ -15,7 +15,7 @@ use crate::persistence::Persistence;
 ///  * _get_ - Used to retrieve a value associated with a key.
 ///  * _put_ - Associate the supplied key with a value.
 ///  * _delete_ - Delete the value associated with a key.
-pub struct Dharma<K, V> {
+pub struct Dharma<K: ResourceKey, V: ResourceValue> {
     options: DharmaOpts,
 
     memory: SkipList<K, V>,
@@ -25,10 +25,10 @@ pub struct Dharma<K, V> {
     size: usize,
 }
 
-impl<K, V> Dharma<K, V>
+impl<'a, K, V> Dharma<K, V>
 where
-    K: Ord + Clone + Display,
-    V: Clone + Display,
+    K: ResourceKey,
+    V: ResourceValue,
 {
     /// Create a new instance of the database based on the supplied configuration.
     /// The configuration props are encapsulated by `DharmaOpts`.
@@ -47,8 +47,8 @@ where
     /// }
     /// ```
     pub fn create(options: DharmaOpts) -> Result<Dharma<K, V>, Errors> {
-        let persistence_result = Persistence::create(&options);
-        return persistence_result.map(|persistence| Dharma {
+        let persistence_result = Persistence::create::<V>(options.clone());
+        return persistence_result.map(move |persistence| Dharma {
             memory: SkipList::new(),
             size: 0,
             persistence,
