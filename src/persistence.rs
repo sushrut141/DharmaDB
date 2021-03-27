@@ -126,7 +126,8 @@ where
         let flush_result = write_sstable(&self.options, values, paths.len());
         if flush_result.is_ok() {
             let new_sstable_path = flush_result.unwrap();
-            //TODO: clear WAL log here
+            // reset Write Ahead Log
+            self.log = self.log.reset()?;
             let index_update_result = Persistence::populate_index_from_path::<V>(
                 &self.options,
                 &new_sstable_path,
