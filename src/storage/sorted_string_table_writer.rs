@@ -1,13 +1,11 @@
 use crate::errors::Errors;
 use crate::options::DharmaOpts;
-use crate::storage::block::{create_blocks, write_block_to_disk, Block, Record, RecordType, Value};
+use crate::storage::block::{create_blocks, write_block_to_disk, Record, Value};
 use crate::traits::{ResourceKey, ResourceValue};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};
 use log;
 use serde::de::DeserializeOwned;
-use std::cmp::Ordering;
 use std::fs::File;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// Write the list of key value pairs, sorted by key to a series of SSTables on disk.

@@ -176,3 +176,13 @@ where
         Err(Errors::SSTABLE_READ_FAILED)
     }
 }
+
+// Cleanup Persistence layer state before shutdown.
+impl<K> Drop for Persistence<K>
+where
+    K: ResourceKey,
+{
+    fn drop(&mut self) {
+        self.log.cleanup();
+    }
+}
