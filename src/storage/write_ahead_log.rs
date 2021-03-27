@@ -16,7 +16,7 @@ pub struct WriteAheadLog {
 }
 
 impl WriteAheadLog {
-    pub fn new(options: DharmaOpts) -> Result<WriteAheadLog, Errors> {
+    pub fn create(options: DharmaOpts) -> Result<WriteAheadLog, Errors> {
         let path = format!("{0}/{1}", options.path, WRITE_AHEAD_LOG_NAME);
         // check if WAL already exists
         if !Path::new(&path).exists() {
@@ -68,7 +68,7 @@ impl WriteAheadLog {
         let path = format!("{0}/{1}", self.options.path, WRITE_AHEAD_LOG_NAME);
         let delete_wal_result = remove_file(&path);
         if delete_wal_result.is_ok() {
-            return WriteAheadLog::new(self.options.clone());
+            return WriteAheadLog::create(self.options.clone());
         }
         Err(WAL_LOG_CREATION_FAILED)
     }

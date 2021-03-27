@@ -32,7 +32,7 @@ where
     ///  - _Err_ - Error encountered while creating persistence layer.
     pub fn create<V: ResourceValue>(options: DharmaOpts) -> Result<Persistence<K>, Errors> {
         // try to create write ahead log
-        let log_result = WriteAheadLog::new(options.clone());
+        let log_result = WriteAheadLog::create(options.clone());
         if log_result.is_ok() {
             // read all SSTables and create the sparse index
             let sstable_paths = SSTableReader::get_valid_table_paths(&options.path)?;
@@ -45,7 +45,7 @@ where
                     return Err(Errors::DB_INDEX_INITIALIZATION_FAILED);
                 }
             }
-            Ok(Persistence { log: log_result.unwrap(), options, index })
+            return Ok(Persistence { log: log_result.unwrap(), options, index });
         }
         Err(log_result.err().unwrap())
     }
