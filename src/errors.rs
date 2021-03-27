@@ -4,8 +4,6 @@ use std::fmt::{Debug, Display, Formatter};
 #[derive(PartialEq)]
 pub enum Errors {
     DB_PATH_DIRTY,
-    DB_LOG_CREATION_FAILED,
-    DB_BOOTSTRAP_FAILED,
     DB_NO_SUCH_KEY,
     DB_WRITE_FAILED,
     DB_DELETE_FAILED,
@@ -14,7 +12,9 @@ pub enum Errors {
     SSTABLE_CREATION_FAILED,
     SSTABLE_READ_FAILED,
     SSTABLE_INVALID_READ_OFFSET,
+    WAL_LOG_CREATION_FAILED,
     WAL_WRITE_FAILED,
+    WAL_BOOTSTRAP_FAILED,
     RECORD_SERIALIZATION_FAILED,
     RECORD_DESERIALIZATION_FAILED,
 }
@@ -23,12 +23,6 @@ impl Errors {
     pub fn value(&self) -> &'static str {
         match self {
             Errors::DB_PATH_DIRTY => "The supplied database path is already in use.",
-            Errors::DB_LOG_CREATION_FAILED => {
-                "Failed to create Write Ahead Log during Database startup."
-            }
-            Errors::DB_BOOTSTRAP_FAILED => {
-                "Could not ingest existing logs to start database. Log files may be corrupted."
-            }
             Errors::DB_NO_SUCH_KEY => "No Such Key found.",
             Errors::DB_WRITE_FAILED => "Could not write entry to database.",
             Errors::DB_DELETE_FAILED => "Could not delete entry from database.",
@@ -36,6 +30,12 @@ impl Errors {
             Errors::SSTABLE_READ_FAILED => "Failed to read SSTable from disk.",
             Errors::SSTABLE_INVALID_READ_OFFSET => "Invalid read offset supplied to SSTable",
             Errors::WAL_WRITE_FAILED => "Write Ahead Log write failed.",
+            Errors::WAL_LOG_CREATION_FAILED => {
+                "Failed to create Write Ahead Log during Database startup."
+            }
+            Errors::WAL_BOOTSTRAP_FAILED => {
+                "Could not ingest existing logs to start database. Log files may be corrupted."
+            }
             Errors::DB_INDEX_INITIALIZATION_FAILED => "Failed to initialize sparse index for DB.",
             Errors::DB_INDEX_UPDATE_FAILED => {
                 "Failed to update the DB index during memtable flush."
