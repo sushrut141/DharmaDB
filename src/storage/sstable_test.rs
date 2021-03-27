@@ -32,21 +32,21 @@ mod tests {
         output
     }
 
-    #[test]
-    fn test_sstable() {
-        let data = create_test_data(0, 30);
-        let mut options = DharmaOpts::default();
-        options.block_size_in_bytes = 15;
-        options.path = String::from("./target");
-        // test writing data
-        let write_result = write_sstable(&options, &data);
-        print!("{:?}", write_result);
-        assert!(write_result.is_ok());
-        // read data from path
-        let read_result =
-            read_sstable::<u8, TestData>(&options, &Path::new("./target/tables/0.db"));
-        assert!(read_result.is_ok());
-        let values = read_result.unwrap();
-        assert_eq!(values.len(), data.len());
-    }
+    // #[test]
+    // fn test_sstable() {
+    //     let data = create_test_data(0, 30);
+    //     let mut options = DharmaOpts::default();
+    //     options.block_size_in_bytes = 15;
+    //     options.path = String::from("./target");
+    //     // test writing data
+    //     let write_result = write_sstable(&options, &data);
+    //     print!("{:?}", write_result);
+    //     assert!(write_result.is_ok());
+    //     // read data from path
+    //     let read_result =
+    //         read_sstable::<u8, TestData>(&options, &Path::new("./target/tables/0.db"));
+    //     assert!(read_result.is_ok());
+    //     let values = read_result.unwrap();
+    //     assert_eq!(values.len(), data.len());
+    // }
 }

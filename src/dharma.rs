@@ -35,17 +35,6 @@ where
     ///
     /// # Arguments
     /// * _options_ - The configuration properties used to initialize the database.
-    ///
-    /// # Example
-    /// ```rust
-    /// use dharma::dharma::Dharma;
-    /// use dharma::options::DharmaOpts;
-    ///
-    /// let db_status = Dharma::create(DharmaOpts::default());
-    /// if db_status.is_ok() {
-    ///     let mut db: Dharma<String, i32> = db_status.unwrap();
-    /// }
-    /// ```
     pub fn create(options: DharmaOpts) -> Result<Dharma<K, V>, Errors> {
         let persistence_result = Persistence::create::<V>(options.clone());
         return persistence_result.map(move |persistence| Dharma {
@@ -61,18 +50,10 @@ where
     /// # Arguments
     /// * _key_ - The key whose value is to fetched.
     ///
-    /// # Example
-    /// ```rust
-    /// use dharma::dharma::Dharma;
-    /// use dharma::options::DharmaOpts;
-    ///
-    /// let db_status = Dharma::new(DharmaOpts::default());
-    /// if db_status.is_ok() {
-    ///     let mut db: Dharma<String, i32> = db_status.unwrap();
-    ///     let key = String::from("1234");
-    ///     let result = db.get(&key);
-    /// }
-    /// ```
+    /// # Returns
+    /// Result that resolves:
+    ///  - _Ok_ - Optional that may contain value if found.
+    ///  - _Err_ - Error specifying why read couldn't be completed.
     pub fn get(&mut self, key: &K) -> Result<Option<V>, Errors> {
         let maybe_in_memory = self.memory.get(key);
         if maybe_in_memory.is_some() {
@@ -87,22 +68,10 @@ where
     /// * _key_ - The key used to associate the value with.
     /// * _value_ - Value to be associated with the key.
     ///
-    /// # Example
-    /// ```rust
-    /// use dharma::dharma::Dharma;
-    /// use dharma::options::DharmaOpts;
-    ///
-    /// let db_status = Dharma::new(DharmaOpts::default());
-    /// if db_status.is_ok() {
-    ///     let mut db: Dharma<String, i32> = db_status.unwrap();
-    ///     let key = String::from("1234");
-    ///     let value = 11235;
-    ///     let put_status = db.put(key.clone(), value);
-    ///     if put_status.is_ok() {
-    ///         // value successfully inserted
-    ///     }
-    /// }
-    /// ```
+    /// # Returns
+    /// Result that resolves:
+    ///  - _Ok_ - () when operation succeeded.
+    ///  - _Err_ - Error specifying why operation failed.
     pub fn put(&mut self, key: K, value: V) -> Result<(), Errors> {
         // try inserting into WAL else fail the operation
         // might need to acquire lock over memory before mutating memory
@@ -112,48 +81,14 @@ where
             self.size += size_of::<K>() + size_of::<V>();
             // threshold exceeded so try flushing memtable to disk
             if self.size >= self.options.memtable_size_in_bytes {
-                let keys_and_values: Vec<(K, V)> = self.memory.collect();
-                // several things could go wrong here
-                // flushing memtable to disk could fail
-                // or deleting old WAL could fail
-                // appropriate recovery action will have to be taken
-                let flush_memory_result = self.persistence.flush(&keys_and_values);
-                if flush_memory_result.is_ok() {
-                    self.reset_memory();
-                    return Ok(());
-                }
-                return flush_memory_result;
+                return self.flush();
             }
         }
         Err(Errors::WAL_WRITE_FAILED)
     }
 
-    /// Delete value associated with the supplied key if it exists.
-    /// # Arguments
-    /// * _key_ - The key to be removed from the database.
-    ///
-    /// # Example
-    /// ```rust
-    /// use dharma::dharma::Dharma;
-    /// use dharma::options::DharmaOpts;
-    ///
-    /// let db_status = Dharma::new(DharmaOpts::default());
-    /// if db_status.is_ok() {
-    ///     let mut db: Dharma<String, i32> = db_status.unwrap();
-    ///     let key = String::from("1234");
-    ///     let delete_status = db.delete(&key);
-    ///     if delete_status.is_ok() {
-    ///         // value successfully deleted
-    ///     }
-    /// }
-    /// ```
     pub fn delete(&mut self, key: &K) -> Result<(), Errors> {
-        let wal_delete_result = self.persistence.delete(key);
-        if wal_delete_result.is_ok() {
-            self.memory.delete(&key);
-            return Ok(());
-        }
-        wal_delete_result
+        unimplemented!()
     }
 
     /// In case of database crash, this operation attempts to recover
@@ -163,10 +98,38 @@ where
         unimplemented!()
     }
 
+    /// Flush the in-memory values to disk. This method is automatically called
+    /// based on configurable thresholds.
+    ///
+    /// # Returns
+    /// Result that specifies:
+    ///  - _Ok_ - Values were flushed to disk successfully.
+    ///  - _Err_ - Failed to flush values to disk.
+    pub fn flush(&mut self) -> Result<(), Errors> {
+        let keys_and_values: Vec<(K, V)> = self.memory.collect();
+        let flush_memory_result = self.persistence.flush(&keys_and_values);
+        if flush_memory_result.is_ok() {
+            self.reset_memory();
+            return Ok(());
+        }
+        return flush_memory_result;
+    }
+
     /// Create a new in-memory store to process further operations.
     /// This operation is required after the current in-memory data is flushed to disk.
     fn reset_memory(&mut self) {
         self.memory = SkipList::new();
         self.size = 0;
+    }
+}
+
+/// Cleanup database state before shutdown.
+impl<K, V> Drop for Dharma<K, V>
+where
+    K: ResourceKey,
+    V: ResourceValue,
+{
+    fn drop(&mut self) {
+        self.flush();
     }
 }

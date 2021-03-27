@@ -1,11 +1,8 @@
 use crate::errors::Errors;
-use crate::errors::Errors::WAL_LOG_CREATION_FAILED;
 use crate::options::DharmaOpts;
 use crate::storage::block::{create_blocks, write_block_to_disk, Block, Value};
 use crate::traits::{ResourceKey, ResourceValue};
-use serde::{Deserialize, Serialize};
 use std::fs::{remove_file, File};
-use std::io::Write;
 use std::path::Path;
 
 const WRITE_AHEAD_LOG_NAME: &str = "wal.log";
@@ -20,7 +17,7 @@ impl WriteAheadLog {
         let path = format!("{0}/{1}", options.path, WRITE_AHEAD_LOG_NAME);
         // check if WAL already exists
         if !Path::new(&path).exists() {
-            let file_result = File::open(path);
+            let file_result = File::create(path);
             if file_result.is_ok() {
                 let writer: File = file_result.unwrap();
                 return Ok(WriteAheadLog {
@@ -30,7 +27,7 @@ impl WriteAheadLog {
             }
             return Err(Errors::WAL_LOG_CREATION_FAILED);
         }
-        Err(Errors::WAL_LOG_CREATION_FAILED)
+        Err(Errors::DB_PATH_DIRTY)
     }
 
     /// Write the key and value to the Write Ahead Log.
@@ -68,11 +65,25 @@ impl WriteAheadLog {
     ///  - _Ok_ - New Write Ahead Log to be used in place of existing.
     ///  - _Err_ - Error that occurred while resetting Write Ahead Log.
     pub fn reset(&mut self) -> Result<WriteAheadLog, Errors> {
-        let path = format!("{0}/{1}", self.options.path, WRITE_AHEAD_LOG_NAME);
-        let delete_wal_result = remove_file(&path);
+        let delete_wal_result = self.cleanup();
         if delete_wal_result.is_ok() {
             return WriteAheadLog::create(self.options.clone());
         }
-        Err(WAL_LOG_CREATION_FAILED)
+        Err(Errors::WAL_LOG_CREATION_FAILED)
+    }
+
+    /// Delete the Write Ahead Log.
+    ///
+    /// # Returns
+    /// Result that specifies
+    ///  - _Ok_ - Write Ahead Log was successfully deleted.
+    ///  - _Err_ -
+    pub fn cleanup(&mut self) -> Result<(), Errors> {
+        let path = format!("{0}/{1}", self.options.path, WRITE_AHEAD_LOG_NAME);
+        let delete_wal_result = remove_file(&path);
+        if delete_wal_result.is_err() {
+            return Err(Errors::WAL_CLEANUP_FAILED);
+        }
+        Ok(())
     }
 }

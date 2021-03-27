@@ -32,8 +32,9 @@ impl DharmaOpts {
     pub fn default() -> DharmaOpts {
         DharmaOpts {
             bootstrap: true,
-            path: String::from("/var/lib/dharma"),
+            path: String::from("/tmp"),
             memtable_size_in_bytes: 4,
+            // block size is 32KB
             block_size_in_bytes: 32768,
             // 32 blocks (each block 32k in size) result in 1MB of memory
             // overall 32MB per SSTable
@@ -51,9 +52,10 @@ mod tests {
     fn test_default_options() {
         let options = DharmaOpts::default();
         assert!(options.bootstrap);
-        assert_eq!(options.path, String::from("/var/lib/dharma"));
+        assert_eq!(options.path, String::from("/tmp"));
         assert_eq!(options.memtable_size_in_bytes, 4);
         assert_eq!(options.block_size_in_bytes, 32768);
+        assert_eq!(options.blocks_per_sstable, 32 * 32);
         assert_eq!(options.sparse_index_sampling_rate, 100);
     }
 }
