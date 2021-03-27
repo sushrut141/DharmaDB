@@ -1,6 +1,6 @@
 use crate::errors::Errors;
 use crate::options::DharmaOpts;
-use crate::storage::block::{Block, Record, RecordType, Value, create_blocks, write_block_to_disk};
+use crate::storage::block::{create_blocks, write_block_to_disk, Block, Record, RecordType, Value};
 use crate::traits::{ResourceKey, ResourceValue};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};
 use log;

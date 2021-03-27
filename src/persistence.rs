@@ -4,10 +4,10 @@ use crate::sparse_index::{SparseIndex, TableAddress};
 use crate::storage::block::Value;
 use crate::storage::sorted_string_table_reader::{SSTableReader, SSTableValue};
 use crate::storage::sorted_string_table_writer::write_sstable;
-use crate::traits::{ResourceKey, ResourceValue};
-use std::path::PathBuf;
-use std::cmp::Ordering;
 use crate::storage::write_ahead_log::WriteAheadLog;
+use crate::traits::{ResourceKey, ResourceValue};
+use std::cmp::Ordering;
+use std::path::PathBuf;
 
 /// Encapsulates all functionality that involves reading
 /// and writing to File System.
@@ -45,7 +45,11 @@ where
                     return Err(Errors::DB_INDEX_INITIALIZATION_FAILED);
                 }
             }
-            return Ok(Persistence { log: log_result.unwrap(), options, index });
+            return Ok(Persistence {
+                log: log_result.unwrap(),
+                options,
+                index,
+            });
         }
         Err(log_result.err().unwrap())
     }
@@ -72,8 +76,7 @@ where
             if seek_result.is_ok() {
                 while reader.has_next() {
                     let sstable_value = reader.read();
-                    let record =
-                        bincode::deserialize::<Value<K, V>>(&sstable_value.data).unwrap();
+                    let record = bincode::deserialize::<Value<K, V>>(&sstable_value.data).unwrap();
                     match record.key.cmp(key) {
                         Ordering::Less => {
                             reader.next();

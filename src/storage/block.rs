@@ -1,9 +1,9 @@
+use crate::errors::Errors;
+use crate::options::DharmaOpts;
 use crate::traits::{ResourceKey, ResourceValue};
 use serde::{Deserialize, Serialize};
-use crate::options::DharmaOpts;
 use std::cmp::Ordering;
 use std::fs::File;
-use crate::errors::Errors;
 use std::io::Write;
 
 #[derive(Serialize, Deserialize)]
@@ -40,8 +40,8 @@ pub fn to_record_type(val: u8) -> RecordType {
         2 => RecordType::START,
         3 => RecordType::MIDDLE,
         4 => RecordType::END,
-        _ => RecordType::UNKNOWN
-    }
+        _ => RecordType::UNKNOWN,
+    };
 }
 
 /// A Record represents the key, value and some metadata persisted to disk.

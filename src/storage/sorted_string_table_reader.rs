@@ -1,5 +1,5 @@
 use crate::errors::Errors;
-use crate::storage::block::{Record, RecordType, Value, to_record_type};
+use crate::storage::block::{to_record_type, Record, RecordType, Value};
 use crate::traits::{ResourceKey, ResourceValue};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};
 use std::fs::{read_dir, File};

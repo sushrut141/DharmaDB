@@ -1,12 +1,12 @@
 use crate::errors::Errors;
+use crate::errors::Errors::WAL_LOG_CREATION_FAILED;
 use crate::options::DharmaOpts;
+use crate::storage::block::{create_blocks, write_block_to_disk, Block, Value};
+use crate::traits::{ResourceKey, ResourceValue};
 use serde::{Deserialize, Serialize};
-use std::fs::{File, remove_file};
+use std::fs::{remove_file, File};
 use std::io::Write;
 use std::path::Path;
-use crate::traits::{ResourceKey, ResourceValue};
-use crate::storage::block::{Value, Block, create_blocks, write_block_to_disk};
-use crate::errors::Errors::WAL_LOG_CREATION_FAILED;
 
 const WRITE_AHEAD_LOG_NAME: &str = "wal.log";
 
@@ -43,8 +43,11 @@ impl WriteAheadLog {
     /// Result that is:
     ///  - _Ok_ - If the record was added to the log successfully.
     ///  - _Err_ - The there was an error writing record to disk. Partial record may be written.
-    pub fn append<K: ResourceKey, V: ResourceValue>(&mut self, key: K, value: V) -> Result<(),
-    Errors> {
+    pub fn append<K: ResourceKey, V: ResourceValue>(
+        &mut self,
+        key: K,
+        value: V,
+    ) -> Result<(), Errors> {
         let value = Value::new(key, value);
         // break record into blocks
         let mut blocks: Vec<Block> = Vec::new();
