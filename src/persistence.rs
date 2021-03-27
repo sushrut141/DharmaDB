@@ -21,6 +21,15 @@ impl<K> Persistence<K>
 where
     K: ResourceKey,
 {
+    /// Create the persistence layer that will be used to orchestrate read / writes with the File
+    /// System.
+    /// # Arguments
+    ///  - _option_ - The Dharma options configuration.
+    ///
+    /// # Returns
+    /// A result that resolves:
+    ///  - _Ok_ - The created persistence instance.
+    ///  - _Err_ - Error encountered while creating persistence layer.
     pub fn create<V: ResourceValue>(options: DharmaOpts) -> Result<Persistence<K>, Errors> {
         // try to create write ahead log
         let log_result = WriteAheadLog::new(options.clone());
@@ -41,6 +50,15 @@ where
         Err(log_result.err().unwrap())
     }
 
+    /// Get the value associated with the specified key.
+    ///
+    /// # Arguments
+    ///  - _key_ - The key whose value to query.
+    ///
+    /// # returns
+    /// Result that resolves:
+    ///  - _Ok_ - Optional that may contain the result value.
+    ///  - _Err_ - Error that occurred while reading the value.
     pub fn get<V: ResourceValue>(&mut self, key: &K) -> Result<Option<V>, Errors> {
         // read SSTables and return the value is present
         let maybe_address = self.index.get_nearest_address(key);
@@ -73,6 +91,17 @@ where
         Ok(None)
     }
 
+    /// Associate the supplied value with the key. This operation writes the
+    /// record to the Write Ahead Log so that it can be recovered in case of failure.
+    ///
+    /// # Arguments
+    ///  - _key_ - The key.
+    ///  - _value_ - The value to save associated with the key.
+    ///
+    /// # Returns
+    /// A result that resolves:
+    ///  - _Ok_ - If value was successfully saved.
+    ///  - _Err_ - Error that occurred while saving value.
     pub fn insert<V: ResourceValue>(&mut self, key: K, value: V) -> Result<(), Errors> {
         let log_write_result = self.log.append(key.clone(), value.clone());
         if log_write_result.is_ok() {
@@ -81,6 +110,16 @@ where
         Err(Errors::DB_WRITE_FAILED)
     }
 
+    /// Flush the list of key value pairs to disk. This method assumes that list is already
+    /// sorted by key and writes the list to disk as an SSTable.
+    ///
+    /// # Arguments
+    ///  - values - List of Key-Value pairs that need to be written to disk.
+    ///
+    /// # Returns
+    /// Result that signifies:
+    ///  - _Ok_ - If values were flushed to disk successfully.
+    ///  - _Err_ - Error that occurred while saving value.
     pub fn flush<V: ResourceValue>(&mut self, values: &Vec<(K, V)>) -> Result<(), Errors> {
         // get the existing SSTable paths
         let paths = SSTableReader::get_valid_table_paths(&self.options.path)?;
