@@ -7,13 +7,13 @@ use std::path::Path;
 use crate::traits::{ResourceKey, ResourceValue};
 use crate::storage::block::{Value, Block, create_blocks, write_block_to_disk};
 
-struct WriteAheadLog {
+pub struct WriteAheadLog {
     options: DharmaOpts,
     writer: File,
 }
 
 impl WriteAheadLog {
-    fn new(options: DharmaOpts) -> Result<WriteAheadLog, Errors> {
+    pub fn new(options: DharmaOpts) -> Result<WriteAheadLog, Errors> {
         let path = format!("{0}/wal.log", options.path);
         // check if WAL already exists
         if !Path::new(&path).exists() {
@@ -40,7 +40,8 @@ impl WriteAheadLog {
     /// Result that is:
     ///  - _Ok_ - If the record was added to the log successfully.
     ///  - _Err_ - The there was an error writing record to disk. Partial record may be written.
-    fn append<K: ResourceKey, V: ResourceValue>(&mut self, key: K, value: V) -> Result<(), Errors> {
+    pub fn append<K: ResourceKey, V: ResourceValue>(&mut self, key: K, value: V) -> Result<(),
+    Errors> {
         let value = Value::new(key, value);
         // break record into blocks
         let mut blocks: Vec<Block> = Vec::new();
