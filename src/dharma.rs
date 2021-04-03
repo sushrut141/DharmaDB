@@ -83,6 +83,7 @@ where
             if self.size >= self.options.memtable_size_in_bytes {
                 return self.flush();
             }
+            return Ok(());
         }
         Err(Errors::WAL_WRITE_FAILED)
     }
@@ -106,8 +107,7 @@ where
     ///  - _Ok_ - Values were flushed to disk successfully.
     ///  - _Err_ - Failed to flush values to disk.
     pub fn flush(&mut self) -> Result<(), Errors> {
-        let keys_and_values: Vec<(K, V)> = self.memory.collect();
-        let flush_memory_result = self.persistence.flush(&keys_and_values);
+        let flush_memory_result = self.persistence.flush(&self.memory.collect());
         if flush_memory_result.is_ok() {
             self.reset_memory();
             return Ok(());

@@ -1,98 +1,29 @@
-use dharma::traits::{ResourceKey, ResourceValue};
-use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use std::fmt::{Display, Formatter, Result};
+use crate::common::test_key::TestKey;
+use crate::common::test_value::TestValue;
+use dharma::options::DharmaOpts;
+use std::fs::{create_dir, remove_dir_all, remove_file};
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct TestKey {
-    data: u32,
-}
+pub mod test_key;
+pub mod test_value;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct TestValue {
-    data: String,
-}
-
-impl TestKey {
-    pub fn from(data: u32) -> TestKey {
-        TestKey { data }
+pub fn get_test_data(count: u32) -> Vec<(TestKey, TestValue)> {
+    let mut vector = Vec::new();
+    for i in 0..count {
+        let key = TestKey::from(i);
+        let value = TestValue::from(format!("value is {}", i).as_str());
+        vector.push((key, value));
     }
+    vector
 }
 
-impl TestValue {
-    pub fn from(data: &str) -> TestValue {
-        TestValue {
-            data: String::from(data),
-        }
-    }
+/// Clean any leftover log files from previous test executions.
+///
+/// # Arguments
+///   - _options_ - The database config.
+pub fn cleanup_paths(options: &DharmaOpts) {
+    let sstable_dir = format!("{0}/tables", options.path);
+    let wal_path = format!("{0}/wal/log", options.path);
+    remove_dir_all(&sstable_dir);
+    create_dir(&sstable_dir);
+    remove_file(&wal_path);
 }
-
-impl ResourceKey for TestKey {}
-
-impl Clone for TestKey {
-    fn clone(&self) -> Self {
-        return TestKey::from(self.data);
-    }
-}
-
-impl Display for TestKey {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self.data)
-    }
-}
-
-impl PartialOrd for TestKey {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.data.cmp(&other.data))
-    }
-}
-
-impl PartialEq for TestKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.data == other.data
-    }
-}
-
-impl Ord for TestKey {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.data.cmp(&other.data)
-    }
-}
-
-impl Eq for TestKey {}
-
-// test value implementations
-
-impl ResourceValue for TestValue {}
-
-impl Clone for TestValue {
-    fn clone(&self) -> Self {
-        return TestValue::from(self.data.as_ref());
-    }
-}
-
-impl Display for TestValue {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self.data)
-    }
-}
-
-impl PartialOrd for TestValue {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.data.cmp(&other.data))
-    }
-}
-
-impl PartialEq for TestValue {
-    fn eq(&self, other: &Self) -> bool {
-        self.data == other.data
-    }
-}
-
-impl Ord for TestValue {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.data.cmp(&other.data)
-    }
-}
-
-impl Eq for TestValue {}

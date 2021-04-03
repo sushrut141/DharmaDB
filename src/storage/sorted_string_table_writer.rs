@@ -5,7 +5,7 @@ use crate::traits::{ResourceKey, ResourceValue};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};
 use log;
 use serde::de::DeserializeOwned;
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::path::{Path, PathBuf};
 
 /// Write the list of key value pairs, sorted by key to a series of SSTables on disk.
@@ -35,6 +35,9 @@ pub fn write_sstable<K: ResourceKey, V: ResourceValue>(
     // write this chunk to disk
     let path_str = format!("{0}/tables/{1}.db", options.path, table_number);
     let path = Path::new(&path_str);
+    if path.parent().is_some() && !path.parent().unwrap().exists() {
+        create_dir_all(path.parent().unwrap());
+    }
     // create file for SSTable
     let file_result = File::create(&path);
     if file_result.is_ok() {
