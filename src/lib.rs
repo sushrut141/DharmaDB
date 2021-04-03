@@ -3,6 +3,6 @@ pub mod errors;
 pub mod options;
 pub mod traits;
 
-mod persistence;
-mod sparse_index;
-mod storage;
+pub mod persistence;
+pub mod sparse_index;
+pub mod storage;

@@ -260,7 +260,7 @@ pub fn write_block_to_disk(
             // subtract one byte for record type specifier
             available_space_in_bytes -= Record::RECORD_BASE_SIZE_IN_BYTES;
             let type_bytes: [u8; 1] = 0_i8.to_be_bytes();
-            let size_bytes = available_space_in_bytes.to_be_bytes();
+            let size_bytes = (available_space_in_bytes as u16).to_be_bytes();
             let mut padding: Vec<u8> = Vec::with_capacity(available_space_in_bytes as usize);
             for _ in 0..available_space_in_bytes {
                 padding.push(0u8);

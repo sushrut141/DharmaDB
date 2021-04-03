@@ -26,7 +26,7 @@ pub struct SSTableReader {
     offset: usize,
     // total size of the SSTable
     size: usize,
-    // data buffered from the current bllck being read
+    // data buffered from the current block being read
     buffer: Vec<u8>,
     // offset within the current buffer
     buffer_offset: usize,
@@ -37,6 +37,19 @@ pub struct SSTableReader {
 }
 
 impl SSTableReader {
+    /// Create an SSTable reader by reading the table at the specified path
+    /// with the supplied blocks size. Supplying an incorrect block size will
+    /// result in reading malformed data and overflow errors.
+    /// TODO(sushrut) - Encode blocksize in table metadata instead of reading from parameter
+    ///
+    /// # Arguments
+    ///  - _path_ - The path at which the SSTable exists.
+    ///  - _block_size_ - The sixe of blocks in the table. See block.rs.
+    ///
+    /// # Returns
+    /// Result that resolves:
+    ///  - _Ok_ - The SSTableReader instance.
+    ///  - _Err_ - Error that occured whlie creating reader.
     pub fn from(path: &PathBuf, block_size: usize) -> Result<SSTableReader, Errors> {
         let file_result = File::open(path);
         if file_result.is_ok() {
@@ -57,8 +70,18 @@ impl SSTableReader {
         return Err(Errors::SSTABLE_READ_FAILED);
     }
 
-    pub fn get_valid_table_paths(input_path: &String) -> Result<Vec<PathBuf>, Errors> {
-        let read_dir_result = read_dir(input_path);
+    /// Get the paths to valid SSTables within the supplied directory.
+    ///
+    /// # Arguments
+    ///  - _base_path_ - The directory in which to look for SSTables.
+    ///
+    /// # Returns
+    /// Result that resolves:
+    ///  - _Ok_ - The list of paths to SSTables sorted lexically.
+    ///  - _Err_ - Error that occurred while reading directory.
+    pub fn get_valid_table_paths(base_path: &String) -> Result<Vec<PathBuf>, Errors> {
+        let tables_path = format!("{0}/tables", base_path);
+        let read_dir_result = read_dir(tables_path);
         if read_dir_result.is_ok() {
             let read_dir = read_dir_result.unwrap();
             let mut output = Vec::new();
@@ -75,14 +98,17 @@ impl SSTableReader {
         Err(Errors::SSTABLE_READ_FAILED)
     }
 
-    /// Read the value at the current offset.
+    /// Read a value from the SSTable.
+    ///
+    /// # Returns
+    /// The value read from the SSTable.
     pub fn read(&mut self) -> SSTableValue {
-        let record_type = to_record_type(self.buffer[self.buffer_offset]);
         let mut previous_buffer_offset = self.buffer_offset;
         let previous_offset = self.offset;
+        let previous_buffer = self.buffer.clone();
+        let mut temp_buffer = Vec::new();
         loop {
-            let mut temp_buffer = Vec::new();
-            match record_type {
+            match to_record_type(self.buffer[self.buffer_offset]) {
                 RecordType::PADDING => {
                     self.load_next_block();
                 }
@@ -99,6 +125,7 @@ impl SSTableReader {
                     let offset = self.offset;
                     self.offset = previous_offset;
                     self.buffer_offset = previous_buffer_offset;
+                    self.buffer = previous_buffer;
                     return SSTableValue {
                         offset,
                         data: data_copy,
@@ -113,7 +140,6 @@ impl SSTableReader {
                     for i in self.buffer_offset..(self.buffer_offset + size) {
                         temp_buffer.push(self.buffer[i]);
                     }
-                    self.buffer_offset += size;
                     // load the next block
                     self.load_next_block();
                 }
@@ -129,8 +155,9 @@ impl SSTableReader {
                     self.buffer_offset += size;
                     // reset buffer and offset to previous state
                     let offset = self.offset;
-                    self.load_block_at(previous_offset);
+                    self.offset = previous_offset;
                     self.buffer_offset = previous_buffer_offset;
+                    self.buffer = previous_buffer;
                     return SSTableValue {
                         offset,
                         data: temp_buffer,
@@ -161,6 +188,9 @@ impl SSTableReader {
     }
 
     /// Check whether more values can be processed in the SSTable.
+    ///
+    /// # Returns
+    /// Flag specifying whether more values can be read from the SSTable.
     pub fn has_next(&self) -> bool {
         if self.offset >= self.size {
             return false;
@@ -169,13 +199,13 @@ impl SSTableReader {
         let buffer = &self.buffer;
         return match record_type {
             RecordType::PADDING => {
-                if self.size - self.offset <= Record::RECORD_BASE_SIZE_IN_BYTES {
-                    return false;
+                let mut current_offset = self.offset;
+                // if reader is at the end of a block with RECORD_BASE_SIZE_IN_BYTES to be ignored
+                if self.block_size - self.buffer_offset <= Record::RECORD_BASE_SIZE_IN_BYTES {
+                    current_offset += self.block_size;
+                    return current_offset < self.size;
                 }
-                let upper_byte = buffer[self.buffer_offset + 1] as u16;
-                let lower_byte = buffer[self.buffer_offset + 2] as u16;
-                let size = (upper_byte << 8 | lower_byte) as usize;
-                return self.offset + size < self.size;
+                return current_offset + self.block_size < self.size;
             }
             _ => true,
         };
@@ -191,12 +221,13 @@ impl SSTableReader {
                 // check if this is the last block in table before loading next block
                 RecordType::PADDING => {
                     self.load_next_block();
+                    break;
                 }
                 RecordType::COMPLETE => {
                     let upper_byte = buffer[self.buffer_offset + 1] as u16;
                     let lower_byte = buffer[self.buffer_offset + 2] as u16;
-                    self.buffer_offset += 3;
                     let size = (upper_byte << 8 | lower_byte) as usize;
+                    self.buffer_offset += 3;
                     self.buffer_offset += size;
                     if self.buffer_offset == self.block_size {
                         self.load_next_block();
