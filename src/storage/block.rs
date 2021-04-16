@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 use std::fs::File;
 use std::io::Write;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Value<K, V> {
     pub key: K,
     pub value: V,

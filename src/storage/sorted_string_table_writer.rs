@@ -60,6 +60,52 @@ pub fn write_sstable<K: ResourceKey, V: ResourceValue>(
     Ok(PathBuf::from(path_str))
 }
 
+/// Write the list of key value pairs, sorted by key to a series of SSTables on disk.
+/// # Arguments
+/// * _option_  - Configurations options specified as `DharmaOpts`
+/// * _tuples_  - List of key value pairs sorted by key.
+///
+/// # Returns
+/// A `Result` which is
+/// - `Ok`: - Empty value
+/// - `Err`: - Error type as specified by `Errors` module
+pub fn write_sstable_at_path<K: ResourceKey, V: ResourceValue>(
+    options: &DharmaOpts,
+    tuples: &Vec<(K, V)>,
+    path: &PathBuf,
+) -> Result<(), Errors> {
+    let values: Vec<Value<K, V>> = tuples
+        .iter()
+        .map(|tup| {
+            return Value::new(tup.0.clone(), tup.1.clone());
+        })
+        .collect();
+    // pack values into blocks
+    let mut blocks = Vec::new();
+    // pack the values into blocks of fixed size as specified by `options.block_size_in_bytes`
+    create_blocks(options, &values, &mut blocks);
+    // create file for SSTable
+    let file_result = File::create(path);
+    if file_result.is_ok() {
+        let mut file = file_result.unwrap();
+        // write all blocks to SSTable file
+        for (block_counter, block) in blocks.iter().enumerate() {
+            let write_result = write_block_to_disk(options, &mut file, &block);
+            if write_result.is_err() {
+                log::error!(
+                    "Failed to write block from chunk {0} to disk",
+                    block_counter
+                );
+                return Err(Errors::SSTABLE_CREATION_FAILED);
+            }
+        }
+    } else {
+        log::error!("Failed to create SSTable from chunk from values");
+        return Err(Errors::SSTABLE_CREATION_FAILED);
+    }
+    Ok(())
+}
+
 /// Read the SSTable at the specified path and return the data persisted in it
 /// as a `Vec` of `Value<K, V>`.
 /// TODO(@deprecated) - Use SSTableReader instead.

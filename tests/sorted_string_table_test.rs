@@ -11,7 +11,7 @@ mod common;
 
 #[test]
 fn test_sstables_io() {
-    let values = get_test_data(800);
+    let values = get_test_data(700);
     let options = DharmaOpts::default();
     let write_result = write_sstable(&options, &values, 0);
     assert!(write_result.is_ok());

@@ -25,9 +25,9 @@ pub struct SSTableReader {
     // The offset at  which to read values from the SSTable
     offset: usize,
     // total size of the SSTable
-    size: usize,
+    pub size: usize,
     // data buffered from the current block being read
-    buffer: Vec<u8>,
+    pub buffer: Vec<u8>,
     // offset within the current buffer
     buffer_offset: usize,
     // the size of blocks in this SSTable
@@ -198,16 +198,9 @@ impl SSTableReader {
             return false;
         }
         let record_type = to_record_type(self.buffer[self.buffer_offset]);
-        let buffer = &self.buffer;
         return match record_type {
             RecordType::PADDING => {
-                let mut current_offset = self.offset;
-                // if reader is at the end of a block with RECORD_BASE_SIZE_IN_BYTES to be ignored
-                if self.block_size - self.buffer_offset <= Record::RECORD_BASE_SIZE_IN_BYTES {
-                    current_offset += self.block_size;
-                    return current_offset < self.size;
-                }
-                return current_offset + self.block_size < self.size;
+                return self.offset + self.block_size < self.size;
             }
             _ => true,
         };

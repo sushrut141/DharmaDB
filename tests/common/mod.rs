@@ -16,6 +16,16 @@ pub fn get_test_data(count: u32) -> Vec<(TestKey, TestValue)> {
     vector
 }
 
+pub fn get_test_data_in_range(start: u32, end: u32) -> Vec<(TestKey, TestValue)> {
+    let mut vector = Vec::new();
+    for i in start..end {
+        let key = TestKey::from(i);
+        let value = TestValue::from(format!("value is {}", i).as_str());
+        vector.push((key, value));
+    }
+    vector
+}
+
 /// Clean any leftover log files from previous test executions.
 ///
 /// # Arguments

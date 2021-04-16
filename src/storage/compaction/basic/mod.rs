@@ -1,17 +1,23 @@
+use crate::errors::Errors;
+use crate::options::DharmaOpts;
 use crate::storage::block::Value;
 use crate::storage::compaction::basic::errors::{CompactionError, CompactionErrors};
 use crate::storage::compaction::CompactionStrategy;
 use crate::storage::sorted_string_table_reader::SSTableReader;
 use crate::traits::{ResourceKey, ResourceValue};
 use std::cmp::Ordering;
-use std::fs::{File, create_dir_all};
+use std::collections::HashMap;
+use std::fs::{create_dir_all, File};
 use std::io::Write;
-use std::path::{PathBuf, Path};
-use crate::options::DharmaOpts;
+use std::path::{Path, PathBuf};
+use crate::storage::sorted_string_table_writer::{write_sstable, write_sstable_at_path};
+use std::panic::resume_unwind;
 
 pub mod errors;
 
 pub struct BasicCompactionOpts {
+    // the databse config
+    db_options: DharmaOpts,
     /// Path at which to read SSTables from.
     input_path: String,
     /// Path at which to write output SSTables
@@ -24,8 +30,9 @@ pub struct BasicCompactionOpts {
 }
 
 impl BasicCompactionOpts {
-    pub fn from(options: &DharmaOpts) -> BasicCompactionOpts {
+    pub fn from(options: DharmaOpts) -> BasicCompactionOpts {
         BasicCompactionOpts {
+            db_options: options.clone(),
             input_path: options.path.clone(),
             output_path: format!("{}/compaction/compaction.db", options.path.clone()),
             block_size: options.block_size_in_bytes,
@@ -63,7 +70,9 @@ impl BasicCompaction {
         if sstable_paths_result.is_ok() {
             let paths = sstable_paths_result.unwrap();
             if paths.len() < self.options.threshold as usize {
-                return Err(CompactionError::with(CompactionErrors::INVALID_COMPACTION_INPUT_PATH));
+                return Err(CompactionError::with(
+                    CompactionErrors::INVALID_COMPACTION_INPUT_PATH,
+                ));
             }
             let mut sstables: Vec<SSTableReader> = paths
                 .iter()
@@ -83,59 +92,65 @@ impl BasicCompaction {
             }
             let size = sstables.len();
             let mut output_sstable_handle = output_sstable_result.unwrap();
-            let mut minimum_value: Option<Value<K, V>> = None;
-            let mut minimum_idx = 0;
-            let mut valid: Vec<bool> = vec![true; size];
+            let mut valid: Vec<bool> = Vec::with_capacity(size);
+            for i in 0..size {
+                valid.push(true);
+            }
+            let mut result = Vec::new();
+            let mut minimums: HashMap<usize, Value<K, V>> = HashMap::new();
             loop {
-                for i in 0..size {
-                    if valid[i] {
-                        let current = sstables[i].read();
-                        let current_value: Value<K, V> = current.to_record().unwrap();
-                        if minimum_value.is_none() {
-                            minimum_value =
-                                sstables[i].read().to_record::<K, V>().ok();
-                            minimum_idx = i;
-                        } else {
-                            match current_value.key.cmp(&minimum_value.as_ref().unwrap().key) {
-                                Ordering::Less => {
-                                    minimum_value = Some(current_value);
-                                    minimum_idx = i;
-                                }
-                                // same key appears in another SSTable that is more recent
-                                Ordering::Equal => {
-                                    // discard min value for older SSTable
-                                    if sstables[minimum_idx].has_next() {
-                                        sstables[minimum_idx].next();
-                                    } else {
-                                        valid[minimum_idx] = false;
+                let mut min_value_data = None;
+                let mut minimum_value: Option<Value<K, V>> = None;
+                let mut minimum_idx = 0;
+                let mut i = 0;
+                // populate minimums map
+                while i < size {
+                    if sstables[i].has_next() && !minimums.contains_key(&i) {
+                        let sstable_value = sstables[i].read();
+                        let value_record_result = sstable_value.to_record();
+                        if value_record_result.is_ok() {
+                            let value_record = value_record_result.unwrap();
+                            minimums.insert(i, value_record.clone());
+                            sstables[i].next();
+                            if minimum_value.is_none() {
+                                minimum_value = Some(value_record.clone());
+                                minimum_idx = i;
+                                min_value_data = Some(sstable_value.data);
+                            } else {
+                                match value_record.key.cmp(&minimum_value.as_ref().unwrap().key) {
+                                    Ordering::Less => {
+                                        minimum_value = Some(value_record.clone());
+                                        minimum_idx = i;
                                     }
-                                    minimum_value = Some(current_value);
-                                    minimum_idx = i;
-                                }
-                                Ordering::Greater => {
-                                    // noop
+                                    Ordering::Equal => {
+                                        // remove duplicate minimum value
+                                        minimums.remove(&minimum_idx);
+                                        minimum_value = Some(value_record.clone());
+                                        minimum_idx = i;
+                                    }
+                                    Ordering::Greater => {}
                                 }
                             }
                         }
                     }
+                    i += 1;
                 }
-                if minimum_value.is_some() {
-                    count += 1;
-                    // write the minimum value to output
-                    let minimum = minimum_value.as_ref().unwrap();
-                    let mininum_value_data = bincode::serialize(minimum).unwrap();
-                    output_sstable_handle.write(mininum_value_data.as_slice());
-                    // advance offset of table with minimum value
-                    if sstables[minimum_idx].has_next() {
-                        sstables[minimum_idx].next();
-                    } else {
-                        valid[minimum_idx] = false;
-                    }
-                    minimum_value = None;
-                } else {
+                // if no minimum value found break loop
+                if minimum_value.is_none() {
                     break;
                 }
+                // store value
+                let final_min = minimum_value.unwrap();
+                result.push((final_min.key, final_min.value));
+                // remove minimum value from map
+                minimums.remove(&minimum_idx);
+                min_value_data = None;
             }
+            write_sstable_at_path(
+                &self.options.db_options,
+                &result,
+                &PathBuf::from(&self.options.output_path)
+            );
             return Ok(Some(PathBuf::from(&self.options.output_path)));
         }
         Err(CompactionError::with(
