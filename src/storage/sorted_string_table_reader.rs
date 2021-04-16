@@ -87,8 +87,10 @@ impl SSTableReader {
             let mut output = Vec::new();
             for path_result in read_dir {
                 if let Ok(dir_entry) = path_result {
-                    if dir_entry.path().ends_with(".db") {
-                        output.push(dir_entry.path());
+                    let path = dir_entry.path();
+                    let extension = path.extension();
+                    if extension.is_some() && extension.unwrap().eq("db") {
+                        output.push(path);
                     }
                 }
             }
