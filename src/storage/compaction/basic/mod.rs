@@ -5,8 +5,8 @@ use crate::storage::compaction::basic::errors::{CompactionError, CompactionError
 use crate::storage::compaction::CompactionStrategy;
 use crate::storage::sorted_string_table_reader::SSTableReader;
 use crate::traits::{ResourceKey, ResourceValue};
-use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::cmp::{Ordering, Reverse};
+use std::collections::{HashMap, BinaryHeap};
 use std::fs::{create_dir_all, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -40,6 +40,53 @@ impl BasicCompactionOpts {
         }
     }
 }
+
+struct CompactionHeapNode<K, V> {
+    value: Value<K, V>,
+    idx: usize,
+}
+
+impl<K, V> CompactionHeapNode<K, V> where K: ResourceKey, V: ResourceValue {
+    pub fn new(value: Value<K, V>, idx: usize) -> CompactionHeapNode<K, V> {
+        CompactionHeapNode {
+            value,
+            idx,
+        }
+    }
+}
+
+impl<K, V> Ord for CompactionHeapNode<K, V> where K: ResourceKey, V: ResourceValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.value == other.value {
+            return self.idx.cmp(&other.idx);
+        }
+        self.value.key.cmp(&other.value.key)
+    }
+}
+
+impl<K, V> Eq for CompactionHeapNode<K, V> where K: ResourceKey, V: ResourceValue {}
+
+
+impl<K, V> PartialOrd for CompactionHeapNode<K, V> where K: ResourceKey, V: ResourceValue {
+
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<K, V> PartialEq for CompactionHeapNode<K, V> where K: ResourceKey, V: ResourceValue {
+
+    fn eq(&self, other: &Self) -> bool {
+        if self.idx != other.idx {
+            return false;
+        }
+        return self.value.key == other.value.key;
+    }
+}
+
+
+
+
 
 /// Compact SSTables at the configured path and write the new SSTable
 /// and sparse index at the configured temporary path.
@@ -98,53 +145,48 @@ impl BasicCompaction {
             }
             let mut result = Vec::new();
             let mut minimums: HashMap<usize, Value<K, V>> = HashMap::new();
-            loop {
-                let mut min_value_data = None;
-                let mut minimum_value: Option<Value<K, V>> = None;
-                let mut minimum_idx = 0;
-                let mut i = 0;
-                // populate minimums map
-                while i < size {
-                    if sstables[i].has_next() && !minimums.contains_key(&i) {
-                        let sstable_value = sstables[i].read();
-                        let value_record_result = sstable_value.to_record();
-                        if value_record_result.is_ok() {
-                            let value_record = value_record_result.unwrap();
-                            minimums.insert(i, value_record.clone());
-                            sstables[i].next();
-                            if minimum_value.is_none() {
-                                minimum_value = Some(value_record.clone());
-                                minimum_idx = i;
-                                min_value_data = Some(sstable_value.data);
-                            } else {
-                                match value_record.key.cmp(&minimum_value.as_ref().unwrap().key) {
-                                    Ordering::Less => {
-                                        minimum_value = Some(value_record.clone());
-                                        minimum_idx = i;
-                                    }
-                                    Ordering::Equal => {
-                                        // remove duplicate minimum value
-                                        minimums.remove(&minimum_idx);
-                                        minimum_value = Some(value_record.clone());
-                                        minimum_idx = i;
-                                    }
-                                    Ordering::Greater => {}
-                                }
-                            }
-                        }
+            // create heap to store values
+            let mut heap = BinaryHeap::new();
+            let mut prev_min: Option<Value<K, V>> = None;
+            for i in 0..size {
+                let sstable_value = sstables[i].read();
+                let record_result = sstable_value.to_record();
+                if record_result.is_ok() {
+                    let record: Value<K, V> = record_result.unwrap();
+                    heap.push(Reverse(CompactionHeapNode::new(record.clone(), i)));
+                    minimums.insert(i, record.clone());
+                    sstables[i].next();
+                }
+            }
+            while !heap.is_empty() {
+                let minimum_node = heap.pop().unwrap().0;
+                let value = minimum_node.value.clone();
+                if prev_min.is_some() {
+                    let same = prev_min.as_ref().unwrap().eq(&value);
+                    if same {
+                        // pop previously pushed value and push in updated value
+                        result.pop();
+                        result.push((value.key.clone(), value.value.clone()));
+                    } else {
+                        result.push((value.key.clone(), value.value.clone()));
                     }
-                    i += 1;
+                    prev_min = Some(value.clone());
+                } else {
+                    prev_min = Some(value.clone());
+                    result.push((value.key.clone(), value.value.clone()));
                 }
-                // if no minimum value found break loop
-                if minimum_value.is_none() {
-                    break;
+                // advance the sstable pointer housing the minimum value
+                if sstables[minimum_node.idx].has_next() {
+                    let new_sstable_value = sstables[minimum_node.idx].read();
+                    let new_record_result = new_sstable_value.to_record();
+                    if new_record_result.is_ok() {
+                        let new_record: Value<K, V> = new_record_result.unwrap();
+                        minimums.insert(minimum_node.idx, new_record.clone());
+                        heap.push(Reverse(CompactionHeapNode::new(new_record.clone(),
+                                                                  minimum_node.idx)));
+                        sstables[minimum_node.idx].next();
+                    }
                 }
-                // store value
-                let final_min = minimum_value.unwrap();
-                result.push((final_min.key, final_min.value));
-                // remove minimum value from map
-                minimums.remove(&minimum_idx);
-                min_value_data = None;
             }
             write_sstable_at_path(
                 &self.options.db_options,
