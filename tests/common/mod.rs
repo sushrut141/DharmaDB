@@ -32,7 +32,7 @@ pub fn get_test_data_in_range(start: u32, end: u32) -> Vec<(TestKey, TestValue)>
 ///   - _options_ - The database config.
 pub fn cleanup_paths(options: &DharmaOpts) {
     let sstable_dir = format!("{0}/tables", options.path);
-    let wal_path = format!("{0}/wal/log", options.path);
+    let wal_path = format!("{0}/wal.log", options.path);
     let compaction_path = format!("{}/compaction", options.path);
     remove_dir_all(&sstable_dir);
     remove_dir_all(&compaction_path);

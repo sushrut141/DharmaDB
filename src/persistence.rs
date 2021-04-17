@@ -168,6 +168,15 @@ where
         Err(Errors::SSTABLE_CREATION_FAILED)
     }
 
+    /// Attempt to recover data from existing WAL. This operation does not ensure
+    /// database recovery and could lead to data loss. WAL is deleted after
+    /// this operation.
+    pub fn recover<T: ResourceKey, U: ResourceValue>(
+        options: DharmaOpts,
+    ) -> Result<Vec<(T, U)>, Errors> {
+        return WriteAheadLog::recover(options);
+    }
+
     pub fn delete(&mut self, key: &K) -> Result<(), Errors> {
         // add delete marker to Write Ahead Log
         unimplemented!()

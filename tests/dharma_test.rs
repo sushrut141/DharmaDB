@@ -4,6 +4,7 @@ use crate::common::{cleanup_paths, get_test_data};
 use dharma::dharma::Dharma;
 use dharma::errors::Errors;
 use dharma::options::DharmaOpts;
+use dharma::storage::write_ahead_log::WriteAheadLog;
 
 mod common;
 
@@ -87,5 +88,47 @@ fn test_database_reads_data_from_existing_sstable() {
         let retrieved_value = new_db.get(&key);
         assert!(retrieved_value.is_ok());
         assert_eq!(retrieved_value.unwrap().unwrap(), expected_value);
+    }
+}
+
+#[test]
+fn test_database_initialization_fails_when_wal_exists_at_path() {
+    let options = DharmaOpts::default();
+    cleanup_paths(&options);
+
+    let data = get_test_data(200);
+    let mut wal = WriteAheadLog::create(options.clone()).unwrap();
+    for (key, value) in data {
+        wal.append(key, value);
+    }
+    // initializing database should fail due to exustence of wal
+    let mut db_result: Result<Dharma<TestKey, TestValue>, Errors> = Dharma::create(options.clone());
+    assert!(db_result.is_err());
+}
+
+#[test]
+fn test_database_recovery_from_existing_wal() {
+    let options = DharmaOpts::default();
+    cleanup_paths(&options);
+
+    let data = get_test_data(200);
+    let expected_data = get_test_data(200);
+    let mut wal = WriteAheadLog::create(options.clone()).unwrap();
+    for (key, value) in data {
+        wal.append(key, value);
+    }
+    // initializing database should fail due to exustence of wal
+    let mut db_result: Result<Dharma<TestKey, TestValue>, Errors> = Dharma::create(options.clone());
+    assert!(db_result.is_err());
+    // attempt database recovery
+    let new_db_result = Dharma::<TestKey, TestValue>::recover::<TestKey, TestValue>(options);
+    assert!(new_db_result.is_ok());
+    let mut new_db = new_db_result.unwrap();
+    for (key, expected_value) in expected_data {
+        let value_result = new_db.get(&key);
+        assert!(value_result.is_ok());
+        let maybe_value = value_result.unwrap();
+        assert!(maybe_value.is_some());
+        assert_eq!(maybe_value.unwrap(), expected_value);
     }
 }

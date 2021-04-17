@@ -1,9 +1,10 @@
 use crate::errors::Errors;
 use crate::options::DharmaOpts;
 use crate::storage::block::{create_blocks, write_block_to_disk, Block, Value};
+use crate::storage::sorted_string_table_reader::SSTableReader;
 use crate::traits::{ResourceKey, ResourceValue};
 use std::fs::{remove_file, File};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const WRITE_AHEAD_LOG_NAME: &str = "wal.log";
 
@@ -85,5 +86,26 @@ impl WriteAheadLog {
             return Err(Errors::WAL_CLEANUP_FAILED);
         }
         Ok(())
+    }
+
+    /// Attempt to recover data from existing WAL. This operation does not ensure
+    /// database recovery and could lead to data loss. WAL is deleted after
+    /// this operation.
+    pub fn recover<K: ResourceKey, V: ResourceValue>(
+        options: DharmaOpts,
+    ) -> Result<Vec<(K, V)>, Errors> {
+        let path = format!("{0}/{1}", options.path, WRITE_AHEAD_LOG_NAME);
+        let mut reader =
+            SSTableReader::from(&PathBuf::from(&path), options.block_size_in_bytes).unwrap();
+        let mut data = Vec::new();
+        while reader.has_next() {
+            let value = reader.read();
+            let record: Value<K, V> = value.to_record::<K, V>().unwrap();
+            data.push((record.key, record.value));
+            reader.next();
+        }
+        return remove_file(&path)
+            .and_then(|_| Ok(data))
+            .map_err(|_| Errors::WAL_BOOTSTRAP_FAILED);
     }
 }

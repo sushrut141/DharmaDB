@@ -88,14 +88,29 @@ where
         Err(Errors::WAL_WRITE_FAILED)
     }
 
-    pub fn delete(&mut self, key: &K) -> Result<(), Errors> {
-        unimplemented!()
-    }
-
     /// In case of database crash, this operation attempts to recover
     /// the database from the Write Ahead Log. This operation may lead to
     /// data loss.
-    pub fn recover(options: DharmaOpts) -> Result<Dharma<K, V>, Errors> {
+    ///
+    /// # Arguments
+    ///  - _options_ -  The database config
+    ///
+    /// # Returns
+    /// Result that resolves
+    ///  - _Ok_ - The initialized database instance on successful recovery.
+    ///  - _Err_ - The error that occured while resolving database.
+    pub fn recover<T: ResourceKey, U: ResourceValue>(
+        options: DharmaOpts,
+    ) -> Result<Dharma<T, U>, Errors> {
+        let data = Persistence::<T>::recover(options.clone())?;
+        let mut db = Dharma::create(options.clone())?;
+        for (key, value) in data {
+            db.put(key, value);
+        }
+        return Ok(db);
+    }
+
+    pub fn delete(&mut self, key: &K) -> Result<(), Errors> {
         unimplemented!()
     }
 
