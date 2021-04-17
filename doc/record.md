@@ -1,5 +1,4 @@
-Storing Records on Disk
-=======================
+# Storing Records on Disk
 
 "The records will be converted into binary and stored on disk"
 

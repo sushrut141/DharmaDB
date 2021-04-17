@@ -1,5 +1,5 @@
-Basic Compaction
-======================
+# Basic Compaction
+
 
 Data written to the database is initially written to an in-memory store 
 called the memtable. The memtable is flushed to disk when the amount of data 
