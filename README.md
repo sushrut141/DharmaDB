@@ -88,9 +88,10 @@ DharmaDB with a server to enable API access.
 ## Contributing
 Contributions to DharmaDB are welcome. For more complex PRs please
 raise an issue outlining the problem / enhancement and how you intend to
-solve it. The docs folder contains an assortment of files that detail the 
+solve it. All PRs should be accompaied with tests. 
+The docs folder contains an assortment of files that detail the 
 inner workings of DharmaDB.
-
+The `tests` folder also reveals a lot about the inner workings of the database.
 You can start off by reading **[DharmaDB Design](doc/dharmadb_design.md)**
 
 
