@@ -66,3 +66,26 @@ fn test_database_operations_after_flush() {
         assert_eq!(maybe_get_value.unwrap(), value);
     }
 }
+
+#[test]
+fn test_database_reads_data_from_existing_sstable() {
+    let options = DharmaOpts::default();
+    cleanup_paths(&options);
+
+    let test_data_1 = get_test_data(200);
+    let test_data_2 = get_test_data(200);
+    let mut db = Dharma::create(options.clone()).unwrap();
+    for (key, value) in test_data_1 {
+        db.put(key, value);
+    }
+    let flush_result = db.flush();
+    assert!(flush_result.is_ok());
+    std::mem::drop(db);
+    // initialize new database
+    let mut new_db: Dharma<TestKey, TestValue> = Dharma::create(options.clone()).unwrap();
+    for (key, expected_value) in test_data_2 {
+        let retrieved_value = new_db.get(&key);
+        assert!(retrieved_value.is_ok());
+        assert_eq!(retrieved_value.unwrap().unwrap(), expected_value);
+    }
+}

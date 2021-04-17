@@ -178,7 +178,6 @@ where
         path: &PathBuf,
         index: &mut SparseIndex<K>,
     ) -> Result<(), Errors> {
-        println!("Populating index from path {:?}", path);
         let mut counter = 0;
         let maybe_reader = SSTableReader::from(path, options.block_size_in_bytes);
         if maybe_reader.is_ok() {
