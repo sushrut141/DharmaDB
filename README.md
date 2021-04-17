@@ -23,8 +23,8 @@ let db = db_result.unwrap();
 ```
 
 ## Operations
-DharmaDB supports a native Rust API and supports common operations of a 
-key/value store. 
+DharmaDB supports a native Rust API and supports common operations of a
+key/value store.
 
 The API allows you to store generic Key Value pairs
 using the `Dharma<K, V>` interface.
@@ -85,11 +85,34 @@ let recovered_db_result = Dharma::<MyKey, MyValue>::recover(options);
 DharmaDB does not provide client-server communication. Applications can wrap
 DharmaDB with a server to enable API access.
 
+## Performance
+Benchmarking is in a very nascent stage still.
+Benchmarks have been added for `get` and `put` operations in the `benches` directory. Benchmarks were carried out on a macbook with the following configuration.
+
+Results are summarized below.
+```markdown
+  Model Name:	MacBook Air
+  Model Identifier:	MacBookAir10,1
+  Chip:	Apple M1
+  Total Number of Cores:	8 (4 performance and 4 efficiency)
+  Memory:	8 GB
+```
+
+The performance numbers were gerated using the [Criterion.rs](https://github.com/bheisler/criterion.rs) package.
+
+Performance was gauged by filling a database with a thousand initial
+values and then flushing to disk to force sstable creation.
+The benchmark scripts in `benches` folder were executed on this database.
+```markdown
+put operation time:   70.656 ms per operation
+get operation time:   17.570 us per operation
+```
+
 ## Contributing
 Contributions to DharmaDB are welcome. For more complex PRs please
 raise an issue outlining the problem / enhancement and how you intend to
-solve it. All PRs should be accompaied with tests. 
-The docs folder contains an assortment of files that detail the 
+solve it. All PRs should be accompanied with tests.
+The docs folder contains an assortment of files that detail the
 inner workings of DharmaDB.
 The `tests` folder also reveals a lot about the inner workings of the database.
 You can start off by reading **[DharmaDB Design](doc/dharmadb_design.md)**
