@@ -12,7 +12,11 @@ pub struct Value<K, V> {
     pub value: V,
 }
 
-impl<K, V> PartialEq for Value<K, V> where K: ResourceKey, V: ResourceValue {
+impl<K, V> PartialEq for Value<K, V>
+where
+    K: ResourceKey,
+    V: ResourceValue,
+{
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
     }

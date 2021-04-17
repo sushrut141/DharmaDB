@@ -14,6 +14,7 @@ fn test_basic_compaction_with_tables_of_same_size() {
     let mut data_1 = get_test_data(500);
     let mut data_2 = get_test_data(500);
     let options = DharmaOpts::default();
+    cleanup_paths(&options);
     let data_1_write_result = write_sstable(&options, &data_1, 0);
     let data_2_write_result = write_sstable(&options, &data_2, 1);
     assert!(data_1_write_result.is_ok());
@@ -28,8 +29,7 @@ fn test_basic_compaction_with_tables_of_same_size() {
     assert!(maybe_compaction_path.is_some());
     let compaction_path = maybe_compaction_path.unwrap();
     // test data is sorted
-    let reader_result =
-        SSTableReader::from(&compaction_path, options.block_size_in_bytes);
+    let reader_result = SSTableReader::from(&compaction_path, options.block_size_in_bytes);
     assert!(reader_result.is_ok());
     let mut reader = reader_result.unwrap();
     let mut output = Vec::new();
@@ -51,6 +51,7 @@ fn test_basic_compaction_with_tables_of_different_size() {
     let mut data_1 = get_test_data(200);
     let mut data_2 = get_test_data_in_range(200, 700);
     let options = DharmaOpts::default();
+    cleanup_paths(&options);
     let data_1_write_result = write_sstable(&options, &data_1, 0);
     let data_2_write_result = write_sstable(&options, &data_2, 1);
     assert!(data_1_write_result.is_ok());
@@ -65,8 +66,7 @@ fn test_basic_compaction_with_tables_of_different_size() {
     assert!(maybe_compaction_path.is_some());
     let compaction_path = maybe_compaction_path.unwrap();
     // test data is sorted
-    let reader_result =
-        SSTableReader::from(&compaction_path, options.block_size_in_bytes);
+    let reader_result = SSTableReader::from(&compaction_path, options.block_size_in_bytes);
     assert!(reader_result.is_ok());
     let mut reader = reader_result.unwrap();
     let mut output = Vec::new();

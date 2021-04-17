@@ -3,7 +3,7 @@ Dharma
 
 Dharma is a fault tolerant, reliable key value store written in Rust.
 
-![Build](https://github.com/sushrut141/dharma/workflows/Rust/badge.svg)
+![Build](https://github.com/sushrut141/dharma/workflows/Build/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 
 ## How it works

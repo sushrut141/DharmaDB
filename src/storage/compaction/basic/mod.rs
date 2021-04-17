@@ -4,14 +4,14 @@ use crate::storage::block::Value;
 use crate::storage::compaction::basic::errors::{CompactionError, CompactionErrors};
 use crate::storage::compaction::CompactionStrategy;
 use crate::storage::sorted_string_table_reader::SSTableReader;
+use crate::storage::sorted_string_table_writer::{write_sstable, write_sstable_at_path};
 use crate::traits::{ResourceKey, ResourceValue};
 use std::cmp::{Ordering, Reverse};
-use std::collections::{HashMap, BinaryHeap};
+use std::collections::{BinaryHeap, HashMap};
 use std::fs::{create_dir_all, File};
 use std::io::Write;
-use std::path::{Path, PathBuf};
-use crate::storage::sorted_string_table_writer::{write_sstable, write_sstable_at_path};
 use std::panic::resume_unwind;
+use std::path::{Path, PathBuf};
 
 pub mod errors;
 
@@ -46,16 +46,21 @@ struct CompactionHeapNode<K, V> {
     idx: usize,
 }
 
-impl<K, V> CompactionHeapNode<K, V> where K: ResourceKey, V: ResourceValue {
+impl<K, V> CompactionHeapNode<K, V>
+where
+    K: ResourceKey,
+    V: ResourceValue,
+{
     pub fn new(value: Value<K, V>, idx: usize) -> CompactionHeapNode<K, V> {
-        CompactionHeapNode {
-            value,
-            idx,
-        }
+        CompactionHeapNode { value, idx }
     }
 }
 
-impl<K, V> Ord for CompactionHeapNode<K, V> where K: ResourceKey, V: ResourceValue {
+impl<K, V> Ord for CompactionHeapNode<K, V>
+where
+    K: ResourceKey,
+    V: ResourceValue,
+{
     fn cmp(&self, other: &Self) -> Ordering {
         if self.value == other.value {
             return self.idx.cmp(&other.idx);
@@ -64,18 +69,28 @@ impl<K, V> Ord for CompactionHeapNode<K, V> where K: ResourceKey, V: ResourceVal
     }
 }
 
-impl<K, V> Eq for CompactionHeapNode<K, V> where K: ResourceKey, V: ResourceValue {}
+impl<K, V> Eq for CompactionHeapNode<K, V>
+where
+    K: ResourceKey,
+    V: ResourceValue,
+{
+}
 
-
-impl<K, V> PartialOrd for CompactionHeapNode<K, V> where K: ResourceKey, V: ResourceValue {
-
+impl<K, V> PartialOrd for CompactionHeapNode<K, V>
+where
+    K: ResourceKey,
+    V: ResourceValue,
+{
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<K, V> PartialEq for CompactionHeapNode<K, V> where K: ResourceKey, V: ResourceValue {
-
+impl<K, V> PartialEq for CompactionHeapNode<K, V>
+where
+    K: ResourceKey,
+    V: ResourceValue,
+{
     fn eq(&self, other: &Self) -> bool {
         if self.idx != other.idx {
             return false;
@@ -83,10 +98,6 @@ impl<K, V> PartialEq for CompactionHeapNode<K, V> where K: ResourceKey, V: Resou
         return self.value.key == other.value.key;
     }
 }
-
-
-
-
 
 /// Compact SSTables at the configured path and write the new SSTable
 /// and sparse index at the configured temporary path.
@@ -182,8 +193,10 @@ impl BasicCompaction {
                     if new_record_result.is_ok() {
                         let new_record: Value<K, V> = new_record_result.unwrap();
                         minimums.insert(minimum_node.idx, new_record.clone());
-                        heap.push(Reverse(CompactionHeapNode::new(new_record.clone(),
-                                                                  minimum_node.idx)));
+                        heap.push(Reverse(CompactionHeapNode::new(
+                            new_record.clone(),
+                            minimum_node.idx,
+                        )));
                         sstables[minimum_node.idx].next();
                     }
                 }
@@ -191,7 +204,7 @@ impl BasicCompaction {
             write_sstable_at_path(
                 &self.options.db_options,
                 &result,
-                &PathBuf::from(&self.options.output_path)
+                &PathBuf::from(&self.options.output_path),
             );
             return Ok(Some(PathBuf::from(&self.options.output_path)));
         }
