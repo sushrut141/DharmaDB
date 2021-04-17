@@ -33,7 +33,7 @@ impl DharmaOpts {
         DharmaOpts {
             bootstrap: true,
             path: String::from("/tmp"),
-            // maximum size of memtable after which its is flushed to disk
+            // maximum size of memtable in bytes after which its is flushed to disk
             memtable_size_in_bytes: 65536,
             // block size is 32KB
             block_size_in_bytes: 32768,

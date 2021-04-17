@@ -19,14 +19,14 @@ pub struct BasicCompactionOpts {
     // the databse config
     db_options: DharmaOpts,
     /// Path at which to read SSTables from.
-    input_path: String,
+    pub input_path: String,
     /// Path at which to write output SSTables
-    output_path: String,
+    pub output_path: String,
     /// Block Size for blocks in SSTable.
-    block_size: usize,
+    pub block_size: usize,
     /// Number of SSTables at input path after which compaction is run to
     /// merge the SSTables into a single table.
-    threshold: u8,
+    pub threshold: u8,
 }
 
 impl BasicCompactionOpts {
@@ -36,7 +36,7 @@ impl BasicCompactionOpts {
             input_path: options.path.clone(),
             output_path: format!("{}/compaction/compaction.db", options.path.clone()),
             block_size: options.block_size_in_bytes,
-            threshold: 2,
+            threshold: 4,
         }
     }
 }
@@ -128,9 +128,7 @@ impl BasicCompaction {
         if sstable_paths_result.is_ok() {
             let paths = sstable_paths_result.unwrap();
             if paths.len() < self.options.threshold as usize {
-                return Err(CompactionError::with(
-                    CompactionErrors::INVALID_COMPACTION_INPUT_PATH,
-                ));
+                return Ok(None);
             }
             let mut sstables: Vec<SSTableReader> = paths
                 .iter()
@@ -211,5 +209,23 @@ impl BasicCompaction {
         Err(CompactionError::with(
             CompactionErrors::INVALID_COMPACTION_INPUT_PATH,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_compaction_options() {
+        let dharma_opts = DharmaOpts::default();
+        let compaction_opts = BasicCompactionOpts::from(dharma_opts.clone());
+        assert_eq!(compaction_opts.input_path, dharma_opts.path);
+        assert_eq!(
+            compaction_opts.output_path,
+            format!("{}/compaction/compaction.db", dharma_opts.path)
+        );
+        assert_eq!(compaction_opts.block_size, dharma_opts.block_size_in_bytes);
+        assert_eq!(compaction_opts.threshold, 4);
     }
 }

@@ -2,12 +2,14 @@ use crate::errors::Errors;
 use crate::options::DharmaOpts;
 use crate::sparse_index::{SparseIndex, TableAddress};
 use crate::storage::block::Value;
+use crate::storage::compaction::basic::{BasicCompaction, BasicCompactionOpts};
 use crate::storage::sorted_string_table_reader::{SSTableReader, SSTableValue};
 use crate::storage::sorted_string_table_writer::write_sstable;
 use crate::storage::write_ahead_log::WriteAheadLog;
 use crate::traits::{ResourceKey, ResourceValue};
 use std::cmp::Ordering;
-use std::path::PathBuf;
+use std::fs::{copy, remove_file};
+use std::path::{Path, PathBuf};
 
 /// Encapsulates all functionality that involves reading
 /// and writing to File System.
@@ -15,6 +17,7 @@ pub struct Persistence<K: ResourceKey> {
     options: DharmaOpts,
     index: SparseIndex<K>,
     log: WriteAheadLog,
+    compaction: BasicCompaction,
 }
 
 impl<K> Persistence<K>
@@ -47,8 +50,9 @@ where
             }
             return Ok(Persistence {
                 log: log_result.unwrap(),
-                options,
+                options: options.clone(),
                 index,
+                compaction: BasicCompaction::new(BasicCompactionOpts::from(options.clone())),
             });
         }
         Err(log_result.err().unwrap())
@@ -124,6 +128,9 @@ where
     ///  - _Ok_ - If values were flushed to disk successfully.
     ///  - _Err_ - Error that occurred while saving value.
     pub fn flush<V: ResourceValue>(&mut self, values: &Vec<(K, V)>) -> Result<(), Errors> {
+        if values.len() == 0 {
+            return Ok(());
+        }
         // get the existing SSTable paths
         let paths = SSTableReader::get_valid_table_paths(&self.options.path)?;
         let flush_result = write_sstable(&self.options, values, paths.len());
@@ -131,6 +138,23 @@ where
             let new_sstable_path = flush_result.unwrap();
             // reset Write Ahead Log
             self.log = self.log.reset()?;
+            // compact sstables
+            let compaction_result = self.compaction.compact::<K, V>();
+            if compaction_result.is_ok() {
+                let maybe_compacted_path = compaction_result.unwrap();
+                if maybe_compacted_path.is_some() {
+                    let compacted_path = maybe_compacted_path.unwrap();
+                    // remove old sstables and replace with compacted table
+                    let swap_result = self.swap_sstables_with_compacted_table(&compacted_path)?;
+                    // update sparse index with new table
+                    self.index.reset();
+                    return Persistence::populate_index_from_path::<V>(
+                        &self.options,
+                        &PathBuf::from(swap_result),
+                        &mut self.index,
+                    );
+                }
+            }
             let index_update_result = Persistence::populate_index_from_path::<V>(
                 &self.options,
                 &new_sstable_path,
@@ -154,6 +178,7 @@ where
         path: &PathBuf,
         index: &mut SparseIndex<K>,
     ) -> Result<(), Errors> {
+        println!("Populating index from path {:?}", path);
         let mut counter = 0;
         let maybe_reader = SSTableReader::from(path, options.block_size_in_bytes);
         if maybe_reader.is_ok() {
@@ -173,7 +198,23 @@ where
             }
             return Ok(());
         }
-        Err(Errors::SSTABLE_READ_FAILED)
+        Err(Errors::DB_INDEX_UPDATE_FAILED)
+    }
+
+    fn swap_sstables_with_compacted_table(
+        &mut self,
+        compacted_path: &PathBuf,
+    ) -> Result<String, Errors> {
+        let sstable_paths = SSTableReader::get_valid_table_paths(&self.options.path)?;
+        for table_path in sstable_paths {
+            remove_file(table_path);
+        }
+        let new_sstable_path = format!("{}/tables/0.db", self.options.path);
+        // copy compacted table
+        return copy(compacted_path, Path::new(&new_sstable_path))
+            .and_then(|_| remove_file(compacted_path))
+            .map(|_| new_sstable_path)
+            .map_err(|_| Errors::COMPACTION_CLEANUP_FAILED);
     }
 }
 

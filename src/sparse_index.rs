@@ -1,3 +1,4 @@
+use crate::traits::ResourceKey;
 use std::fmt::Display;
 use std::path::PathBuf;
 use subway::skiplist::SkipList;
@@ -27,7 +28,7 @@ pub struct SparseIndex<K> {
 
 impl<K> SparseIndex<K>
 where
-    K: Ord + Clone + Display,
+    K: ResourceKey,
 {
     pub fn new() -> SparseIndex<K> {
         SparseIndex {
@@ -58,5 +59,10 @@ where
     pub fn get_nearest_address(&mut self, key: &K) -> Option<TableAddress> {
         let maybe_nearest_key = self.data.bisect(key);
         return maybe_nearest_key.and_then(|nearest_key| self.data.get(&nearest_key));
+    }
+
+    /// Reset the sparse index, Equivalent to creating a new index and using it.
+    pub fn reset(&mut self) {
+        self.data = SkipList::new();
     }
 }

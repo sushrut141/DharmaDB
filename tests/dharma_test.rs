@@ -44,7 +44,6 @@ fn test_database_flush() {
 }
 
 #[test]
-#[ignore]
 fn test_database_operations_after_flush() {
     let options = DharmaOpts::default();
     cleanup_paths(&options);
@@ -57,7 +56,7 @@ fn test_database_operations_after_flush() {
     // flush database to ensure no data remains in memory
     let flush_result = db.flush();
     assert!(flush_result.is_ok());
-
+    assert_eq!(db.in_memory_size(), 0);
     // test reading values back
     for (key, value) in expected_data {
         let get_result = db.get(&key);

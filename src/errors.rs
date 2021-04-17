@@ -18,6 +18,7 @@ pub enum Errors {
     WAL_CLEANUP_FAILED,
     RECORD_SERIALIZATION_FAILED,
     RECORD_DESERIALIZATION_FAILED,
+    COMPACTION_CLEANUP_FAILED,
 }
 
 impl Errors {
@@ -47,6 +48,7 @@ impl Errors {
             }
             Errors::RECORD_SERIALIZATION_FAILED => "Failed to serialize record.",
             Errors::RECORD_DESERIALIZATION_FAILED => "Failed to deserialize record.",
+            Errors::COMPACTION_CLEANUP_FAILED => "Compaction cleanup failed.",
         }
     }
 }

@@ -115,6 +115,14 @@ where
         return flush_memory_result;
     }
 
+    /// Gets the size in bytes of data stored in-memory currently.
+    ///
+    /// # Returns
+    /// Size in bytes of data stored in-memory.
+    pub fn in_memory_size(&self) -> usize {
+        self.size
+    }
+
     /// Create a new in-memory store to process further operations.
     /// This operation is required after the current in-memory data is flushed to disk.
     fn reset_memory(&mut self) {
