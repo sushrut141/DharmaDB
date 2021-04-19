@@ -1,11 +1,11 @@
 use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;
 use crate::common::{cleanup_paths, get_test_data, get_test_data_in_range};
-use dharma::options::DharmaOpts;
-use dharma::storage::block::Value;
-use dharma::storage::compaction::basic::{BasicCompaction, BasicCompactionOpts};
-use dharma::storage::sorted_string_table_reader::SSTableReader;
-use dharma::storage::sorted_string_table_writer::write_sstable;
+use dharmadb::options::DharmaOpts;
+use dharmadb::storage::block::Value;
+use dharmadb::storage::compaction::basic::{BasicCompaction, BasicCompactionOpts};
+use dharmadb::storage::sorted_string_table_reader::SSTableReader;
+use dharmadb::storage::sorted_string_table_writer::write_sstable;
 
 mod common;
 

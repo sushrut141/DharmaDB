@@ -1,10 +1,10 @@
 use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;
 use crate::common::{cleanup_paths, get_test_data};
-use dharma::dharma::Dharma;
-use dharma::errors::Errors;
-use dharma::options::DharmaOpts;
-use dharma::storage::write_ahead_log::WriteAheadLog;
+use dharmadb::dharma::Dharma;
+use dharmadb::errors::Errors;
+use dharmadb::options::DharmaOpts;
+use dharmadb::storage::write_ahead_log::WriteAheadLog;
 
 mod common;
 

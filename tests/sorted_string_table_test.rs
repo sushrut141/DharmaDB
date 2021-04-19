@@ -1,10 +1,10 @@
 use crate::common::get_test_data;
 use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;
-use dharma::options::DharmaOpts;
-use dharma::storage::block::Value;
-use dharma::storage::sorted_string_table_reader::SSTableReader;
-use dharma::storage::sorted_string_table_writer::write_sstable;
+use dharmadb::options::DharmaOpts;
+use dharmadb::storage::block::Value;
+use dharmadb::storage::sorted_string_table_reader::SSTableReader;
+use dharmadb::storage::sorted_string_table_writer::write_sstable;
 use std::fs::File;
 
 mod common;

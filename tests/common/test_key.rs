@@ -1,4 +1,4 @@
-use dharma::traits::ResourceKey;
+use dharmadb::traits::ResourceKey;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result};

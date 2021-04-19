@@ -1,10 +1,10 @@
 use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;
 use crate::common::{cleanup_paths, get_test_data, get_test_data_in_range};
-use dharma::errors::Errors;
-use dharma::options::DharmaOpts;
-use dharma::persistence::Persistence;
-use dharma::storage::sorted_string_table_reader::SSTableReader;
+use dharmadb::errors::Errors;
+use dharmadb::options::DharmaOpts;
+use dharmadb::persistence::Persistence;
+use dharmadb::storage::sorted_string_table_reader::SSTableReader;
 
 mod common;
 

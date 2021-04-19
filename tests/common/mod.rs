@@ -1,6 +1,6 @@
 use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;
-use dharma::options::DharmaOpts;
+use dharmadb::options::DharmaOpts;
 use std::fs::{create_dir, remove_dir_all, remove_file};
 
 pub mod test_key;
