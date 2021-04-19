@@ -9,9 +9,9 @@ DharmaDB is a persistent, fault tolerant Key-Value Store written in Rust.
 ## Setup
 Just create an instance of `Dharma` to get the key value store up and running.
 ```rust
-use dharma::dharma::Dharma;
-use dharma::errors::Errors;
-use dharma::options::DharmaOpts;
+use dharmadb::dharma::Dharma;
+use dharmadb::errors::Errors;
+use dharmadb::options::DharmaOpts;
 
 // configure options such as database persistence path
 // or block size using DharmaOpts or use the defaults
@@ -33,9 +33,9 @@ using the `Dharma<K, V>` interface.
 
 The put operation is used to persist a value associated with a key to the store.
 ```rust
-use dharma::dharma::Dharma;
-use dharma::errors::Errors;
-use dharma::options::DharmaOpts;
+use dharmadb::dharma::Dharma;
+use dharmadb::errors::Errors;
+use dharmadb::options::DharmaOpts;
 
 let options = DharmaOpts::default();
 let db_result: Result<Dharma<MyKey, MyValue>, Errors> = Dharma::new(options);
@@ -48,9 +48,9 @@ let put_result = db.put(my_key, my_value);
 
 The get operation retrieves the value associated with a key if it exists.
 ```rust
-use dharma::dharma::Dharma;
-use dharma::errors::Errors;
-use dharma::options::DharmaOpts;
+use dharmadb::dharma::Dharma;
+use dharmadb::errors::Errors;
+use dharmadb::options::DharmaOpts;
 
 let options = DharmaOpts::default();
 let db_result: Result<Dharma<MyKey, MyValue>, Errors> = Dharma::new(options);
@@ -65,9 +65,9 @@ The recover operation is required in cases of unexpected crashes.
 Generally, `Dharma` will detect non-graceful exit and suggest running
 recovery on startup.
 ```rust
-use dharma::dharma::Dharma;
-use dharma::errors::Errors;
-use dharma::options::DharmaOpts;
+use dharmadb::dharma::Dharma;
+use dharmadb::errors::Errors;
+use dharmadb::options::DharmaOpts;
 
 let options = DharmaOpts::default();
 // try recovering data after non-graceful shutdown by calling recover
