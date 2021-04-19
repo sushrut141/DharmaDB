@@ -110,7 +110,7 @@ where
         return Ok(db);
     }
 
-    pub fn delete(&mut self, key: &K) -> Result<(), Errors> {
+    fn delete(&mut self, key: &K) -> Result<(), Errors> {
         unimplemented!()
     }
 

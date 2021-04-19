@@ -1,10 +1,12 @@
 [package]
-name = "dharma"
+name = "dharmaDB"
 version = "0.1.0"
 authors = ["sushrutshivaswamy"]
+repository = "https://github.com/sushrut141/DharmaDB"
+description = """
+Persistent, fault tolerant key-value store written in Rust.
+"""
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 subway = "0.1.2"
