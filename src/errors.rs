@@ -1,5 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
 
+pub type Result<T> = std::result::Result<T, Errors>;
+
 #[allow(non_camel_case_types)]
 #[derive(PartialEq)]
 pub enum Errors {

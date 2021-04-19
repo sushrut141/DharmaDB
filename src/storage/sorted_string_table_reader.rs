@@ -1,4 +1,4 @@
-use crate::errors::Errors;
+use crate::errors::{Errors, Result};
 use crate::storage::block::{to_record_type, Record, RecordType, Value};
 use crate::traits::{ResourceKey, ResourceValue};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};
@@ -13,7 +13,7 @@ pub struct SSTableValue {
 }
 
 impl SSTableValue {
-    pub fn to_record<K: ResourceKey, V: ResourceValue>(&self) -> Result<Value<K, V>, Errors> {
+    pub fn to_record<K: ResourceKey, V: ResourceValue>(&self) -> Result<Value<K, V>> {
         let value_result = bincode::deserialize::<Value<K, V>>(self.data.as_slice());
         return value_result.map_err(|err| Errors::RECORD_DESERIALIZATION_FAILED);
     }
@@ -50,7 +50,7 @@ impl SSTableReader {
     /// Result that resolves:
     ///  - _Ok_ - The SSTableReader instance.
     ///  - _Err_ - Error that occured whlie creating reader.
-    pub fn from(path: &PathBuf, block_size: usize) -> Result<SSTableReader, Errors> {
+    pub fn from(path: &PathBuf, block_size: usize) -> Result<SSTableReader> {
         let file_result = File::open(path);
         if file_result.is_ok() {
             let file = file_result.unwrap();
@@ -79,7 +79,7 @@ impl SSTableReader {
     /// Result that resolves:
     ///  - _Ok_ - The list of paths to SSTables sorted lexically.
     ///  - _Err_ - Error that occurred while reading directory.
-    pub fn get_valid_table_paths(base_path: &String) -> Result<Vec<PathBuf>, Errors> {
+    pub fn get_valid_table_paths(base_path: &String) -> Result<Vec<PathBuf>> {
         let tables_path = format!("{0}/tables", base_path);
         let read_dir_result = read_dir(tables_path);
         if read_dir_result.is_ok() {
@@ -176,7 +176,7 @@ impl SSTableReader {
     /// Returns a result that is
     ///  - `()` if seek succeeded
     ///  - Err if supplied offset is invalid
-    pub fn seek_closest(&mut self, offset: usize) -> Result<(), Errors> {
+    pub fn seek_closest(&mut self, offset: usize) -> Result<()> {
         if offset < self.size {
             // get block that contains this offset
             let block_number: usize = (offset as f64 / self.block_size as f64).floor() as usize;

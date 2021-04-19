@@ -2,7 +2,7 @@ use core::mem::size_of;
 
 use subway::skiplist::SkipList;
 
-use crate::errors::Errors;
+use crate::errors::{Errors, Result};
 use crate::options::DharmaOpts;
 use crate::persistence::Persistence;
 use crate::traits::{ResourceKey, ResourceValue};
@@ -35,7 +35,7 @@ where
     ///
     /// # Arguments
     /// * _options_ - The configuration properties used to initialize the database.
-    pub fn create(options: DharmaOpts) -> Result<Dharma<K, V>, Errors> {
+    pub fn create(options: DharmaOpts) -> Result<Dharma<K, V>> {
         let persistence_result = Persistence::create::<V>(options.clone());
         return persistence_result.map(move |persistence| Dharma {
             memory: SkipList::new(),
@@ -54,7 +54,7 @@ where
     /// Result that resolves:
     ///  - _Ok_ - Optional that may contain value if found.
     ///  - _Err_ - Error specifying why read couldn't be completed.
-    pub fn get(&mut self, key: &K) -> Result<Option<V>, Errors> {
+    pub fn get(&mut self, key: &K) -> Result<Option<V>> {
         let maybe_in_memory = self.memory.get(key);
         if maybe_in_memory.is_some() {
             let retrieved_value = maybe_in_memory.unwrap();
@@ -78,7 +78,7 @@ where
     /// Result that resolves:
     ///  - _Ok_ - () when operation succeeded.
     ///  - _Err_ - Error specifying why operation failed.
-    pub fn put(&mut self, key: K, value: V) -> Result<(), Errors> {
+    pub fn put(&mut self, key: K, value: V) -> Result<()> {
         // try inserting into WAL else fail the operation
         // might need to acquire lock over memory before mutating memory
         let wal_insert_result = self.persistence.insert(key.clone(), value.clone());
@@ -105,7 +105,7 @@ where
     /// Result that resolves:
     ///  - _Ok_ - () if operation succeeded.
     ///  - _Err_ - Error that occored deleting key.
-    pub fn delete(&mut self, key: K) -> Result<(), Errors> {
+    pub fn delete(&mut self, key: K) -> Result<()> {
         let value: V = V::nil();
         return self.put(key, value);
     }
@@ -121,9 +121,7 @@ where
     /// Result that resolves
     ///  - _Ok_ - The initialized database instance on successful recovery.
     ///  - _Err_ - The error that occured while resolving database.
-    pub fn recover<T: ResourceKey, U: ResourceValue>(
-        options: DharmaOpts,
-    ) -> Result<Dharma<T, U>, Errors> {
+    pub fn recover<T: ResourceKey, U: ResourceValue>(options: DharmaOpts) -> Result<Dharma<T, U>> {
         let data = Persistence::<T>::recover(options.clone())?;
         let mut db = Dharma::create(options.clone())?;
         for (key, value) in data {
@@ -139,7 +137,7 @@ where
     /// Result that specifies:
     ///  - _Ok_ - Values were flushed to disk successfully.
     ///  - _Err_ - Failed to flush values to disk.
-    pub fn flush(&mut self) -> Result<(), Errors> {
+    pub fn flush(&mut self) -> Result<()> {
         let flush_memory_result = self.persistence.flush(&self.memory.collect());
         if flush_memory_result.is_ok() {
             self.reset_memory();

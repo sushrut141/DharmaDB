@@ -1,4 +1,4 @@
-use crate::errors::Errors;
+use crate::errors::{Errors, Result};
 use crate::options::DharmaOpts;
 use crate::storage::block::{create_blocks, write_block_to_disk, Record, Value};
 use crate::traits::{ResourceKey, ResourceValue};
@@ -21,7 +21,7 @@ pub fn write_sstable<K: ResourceKey, V: ResourceValue>(
     options: &DharmaOpts,
     tuples: &Vec<(K, V)>,
     table_number: usize,
-) -> Result<PathBuf, Errors> {
+) -> Result<PathBuf> {
     let values: Vec<Value<K, V>> = tuples
         .iter()
         .map(|tup| {
@@ -73,7 +73,7 @@ pub fn write_sstable_at_path<K: ResourceKey, V: ResourceValue>(
     options: &DharmaOpts,
     tuples: &Vec<(K, V)>,
     path: &PathBuf,
-) -> Result<(), Errors> {
+) -> Result<()> {
     let values: Vec<Value<K, V>> = tuples
         .iter()
         .map(|tup| {
@@ -121,7 +121,7 @@ pub fn write_sstable_at_path<K: ResourceKey, V: ResourceValue>(
 pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
     options: &DharmaOpts,
     path: &Path,
-) -> Result<Vec<Value<K, V>>, Errors> {
+) -> Result<Vec<Value<K, V>>> {
     let mut output: Vec<Value<K, V>> = Vec::new();
     let file_result = File::open(path);
     if file_result.is_ok() {

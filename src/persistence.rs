@@ -1,4 +1,4 @@
-use crate::errors::Errors;
+use crate::errors::{Errors, Result};
 use crate::options::DharmaOpts;
 use crate::sparse_index::{SparseIndex, TableAddress};
 use crate::storage::block::Value;
@@ -33,7 +33,7 @@ where
     /// A result that resolves:
     ///  - _Ok_ - The created persistence instance.
     ///  - _Err_ - Error encountered while creating persistence layer.
-    pub fn create<V: ResourceValue>(options: DharmaOpts) -> Result<Persistence<K>, Errors> {
+    pub fn create<V: ResourceValue>(options: DharmaOpts) -> Result<Persistence<K>> {
         // try to create write ahead log
         let log_result = WriteAheadLog::create(options.clone());
         if log_result.is_ok() {
@@ -67,7 +67,7 @@ where
     /// Result that resolves:
     ///  - _Ok_ - Optional that may contain the result value.
     ///  - _Err_ - Error that occurred while reading the value.
-    pub fn get<V: ResourceValue>(&mut self, key: &K) -> Result<Option<V>, Errors> {
+    pub fn get<V: ResourceValue>(&mut self, key: &K) -> Result<Option<V>> {
         // read SSTables and return the value is present
         let maybe_address = self.index.get_nearest_address(key);
         if maybe_address.is_some() {
@@ -118,7 +118,7 @@ where
     /// A result that resolves:
     ///  - _Ok_ - If value was successfully saved.
     ///  - _Err_ - Error that occurred while saving value.
-    pub fn insert<V: ResourceValue>(&mut self, key: K, value: V) -> Result<(), Errors> {
+    pub fn insert<V: ResourceValue>(&mut self, key: K, value: V) -> Result<()> {
         let log_write_result = self.log.append(key.clone(), value.clone());
         if log_write_result.is_ok() {
             return Ok(());
@@ -136,7 +136,7 @@ where
     /// Result that signifies:
     ///  - _Ok_ - If values were flushed to disk successfully.
     ///  - _Err_ - Error that occurred while saving value.
-    pub fn flush<V: ResourceValue>(&mut self, values: &Vec<(K, V)>) -> Result<(), Errors> {
+    pub fn flush<V: ResourceValue>(&mut self, values: &Vec<(K, V)>) -> Result<()> {
         if values.len() == 0 {
             return Ok(());
         }
@@ -180,13 +180,11 @@ where
     /// Attempt to recover data from existing WAL. This operation does not ensure
     /// database recovery and could lead to data loss. WAL is deleted after
     /// this operation.
-    pub fn recover<T: ResourceKey, U: ResourceValue>(
-        options: DharmaOpts,
-    ) -> Result<Vec<(T, U)>, Errors> {
+    pub fn recover<T: ResourceKey, U: ResourceValue>(options: DharmaOpts) -> Result<Vec<(T, U)>> {
         return WriteAheadLog::recover(options);
     }
 
-    pub fn delete(&mut self, key: &K) -> Result<(), Errors> {
+    pub fn delete(&mut self, key: &K) -> Result<()> {
         // add delete marker to Write Ahead Log
         unimplemented!()
     }
@@ -195,7 +193,7 @@ where
         options: &DharmaOpts,
         path: &PathBuf,
         index: &mut SparseIndex<K>,
-    ) -> Result<(), Errors> {
+    ) -> Result<()> {
         let mut counter = 0;
         let maybe_reader = SSTableReader::from(path, options.block_size_in_bytes);
         if maybe_reader.is_ok() {
@@ -219,10 +217,7 @@ where
         Err(Errors::DB_INDEX_UPDATE_FAILED)
     }
 
-    fn swap_sstables_with_compacted_table(
-        &mut self,
-        compacted_path: &PathBuf,
-    ) -> Result<String, Errors> {
+    fn swap_sstables_with_compacted_table(&mut self, compacted_path: &PathBuf) -> Result<String> {
         let sstable_paths = SSTableReader::get_valid_table_paths(&self.options.path)?;
         for table_path in sstable_paths {
             remove_file(table_path);
