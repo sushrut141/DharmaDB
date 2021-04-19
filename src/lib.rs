@@ -4,5 +4,5 @@ pub mod options;
 pub mod traits;
 
 pub mod persistence;
-pub mod sparse_index;
+mod sparse_index;
 pub mod storage;

@@ -2,11 +2,11 @@ mod common;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use dharma::options::DharmaOpts;
-use dharma::dharma::Dharma;
-use crate::common::{cleanup_paths, get_test_data};
 use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;
+use crate::common::{cleanup_paths, get_test_data};
+use dharma::dharma::Dharma;
+use dharma::options::DharmaOpts;
 
 fn dharma_db_benchmark(c: &mut Criterion) {
     let options = DharmaOpts::default();
@@ -20,14 +20,17 @@ fn dharma_db_benchmark(c: &mut Criterion) {
     // flush databse to force sstable creation
     db.flush();
     let test_key = TestKey::from(400);
-    let test_value =
-        TestValue::from("Test data string reprsentative of small to medium payloads.");
-    c.bench_function("benchmark put operation", |b| b.iter(|| {
-        return db.put(test_key.clone(), test_value.clone()).unwrap();
-    }));
-    c.bench_function("benchmark get operation", |b| b.iter(|| {
-        return db.get(&test_key).unwrap();
-    }));
+    let test_value = TestValue::from("Test data string reprsentative of small to medium payloads.");
+    c.bench_function("benchmark put operation", |b| {
+        b.iter(|| {
+            return db.put(test_key.clone(), test_value.clone()).unwrap();
+        })
+    });
+    c.bench_function("benchmark get operation", |b| {
+        b.iter(|| {
+            return db.get(&test_key).unwrap();
+        })
+    });
 }
 
 criterion_group!(benches, dharma_db_benchmark);
