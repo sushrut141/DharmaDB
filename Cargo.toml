@@ -6,6 +6,9 @@ repository = "https://github.com/sushrut141/DharmaDB"
 description = """
 Persistent, fault tolerant key-value store written in Rust.
 """
+license = "MIT"
+keywords = ["database", "key-value", "persistent"]
+categories = ["database", "database-implementations", "data-structures"]
 edition = "2018"
 
 [dependencies]
