@@ -1,6 +1,6 @@
 [package]
 name = "dharmadb"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["sushrutshivaswamy"]
 repository = "https://github.com/sushrut141/DharmaDB"
 description = """
