@@ -60,6 +60,24 @@ let get_result = db.get(&my_key);
 let maybe_value: Option<MyValue> = get_result.unwrap();
 ```
 
+### delete
+
+The delete operation disassociates the values the supplied key.
+Retrieving a deleted key resolves `None`.
+```rust
+use dharmadb::dharma::Dharma;
+use dharmadb::errors::Errors;
+use dharmadb::options::DharmaOpts;c
+
+let options = DharmaOpts::default();
+let db_result: Result<Dharma<MyKey, MyValue>, Errors> = Dharma::new(options);
+
+// ... store data
+
+// delete a key from the store
+let delete_result = db.delete(&my_key);
+```
+
 ### recover
 The recover operation is required in cases of unexpected crashes.
 Generally, `Dharma` will detect non-graceful exit and suggest running

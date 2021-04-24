@@ -1,6 +1,6 @@
 use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;
-use crate::common::{cleanup_paths, get_test_data};
+use crate::common::{cleanup_paths, get_test_data, get_test_data_in_range};
 use dharmadb::dharma::Dharma;
 use dharmadb::errors::Errors;
 use dharmadb::options::DharmaOpts;
@@ -29,6 +29,25 @@ fn test_insert_and_get() {
     assert!(query_result.is_ok());
     let maybe_result = query_result.unwrap();
     assert_eq!(maybe_result, Some(TestValue::from("first value")));
+}
+
+#[test]
+fn test_delete() {
+    let options = DharmaOpts::default();
+    cleanup_paths(&options);
+
+    let mut db: Dharma<TestKey, TestValue> = Dharma::create(options).unwrap();
+    let key = TestKey::from(1);
+    let insert_result = db.put(key.clone(), TestValue::from("first value"));
+    assert!(insert_result.is_ok());
+    // delete value associated with key
+    let delete_result = db.delete(key.clone());
+    assert!(delete_result.is_ok());
+
+    // value should not be retrievable after delete
+    let get_result = db.get(&key);
+    assert!(get_result.is_ok());
+    assert_eq!(get_result, Ok(None));
 }
 
 #[test]
@@ -65,6 +84,38 @@ fn test_database_operations_after_flush() {
         let maybe_get_value = get_result.unwrap();
         assert!(maybe_get_value.is_some());
         assert_eq!(maybe_get_value.unwrap(), value);
+    }
+}
+
+#[test]
+fn test_database_delete_after_flush() {
+    let options = DharmaOpts::default();
+    cleanup_paths(&options);
+    let data = get_test_data(10);
+    let expected_data = data.clone();
+    let mut db: Dharma<TestKey, TestValue> = Dharma::create(options).unwrap();
+    for (key, value) in data {
+        db.put(key, value);
+    }
+    // delete keys in range of 0..5
+    for i in 0..5 {
+        assert!(db.delete(TestKey::from(i)).is_ok());
+    }
+    db.flush();
+    // data in delete range should return null
+    for i in 0..5 {
+        let get_result = db.get(&TestKey::from(i));
+        assert!(get_result.is_ok());
+        let maybe_value = get_result.unwrap();
+        assert!(maybe_value.is_none());
+    }
+    // data in non deleted range should exist
+    for (key, value) in get_test_data_in_range(5, 10) {
+        let get_result = db.get(&key);
+        assert!(get_result.is_ok());
+        let maybe_value = get_result.unwrap();
+        assert!(maybe_value.is_some());
+        assert_eq!(maybe_value.unwrap(), value);
     }
 }
 

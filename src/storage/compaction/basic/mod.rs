@@ -62,6 +62,7 @@ where
     V: ResourceValue,
 {
     fn cmp(&self, other: &Self) -> Ordering {
+        // two records are equal if their keys are equal
         if self.value == other.value {
             return self.idx.cmp(&other.idx);
         }
@@ -175,7 +176,10 @@ impl BasicCompaction {
                     if same {
                         // pop previously pushed value and push in updated value
                         result.pop();
-                        result.push((value.key.clone(), value.value.clone()));
+                        // push new value only if it is not a delete marker
+                        if value.value.clone() != V::nil() {
+                            result.push((value.key.clone(), value.value.clone()));
+                        }
                     } else {
                         result.push((value.key.clone(), value.value.clone()));
                     }

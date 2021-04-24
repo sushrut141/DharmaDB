@@ -1,4 +1,4 @@
-use dharmadb::traits::ResourceValue;
+use dharmadb::traits::{Nil, ResourceValue};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result};
@@ -49,3 +49,9 @@ impl Ord for TestValue {
 }
 
 impl Eq for TestValue {}
+
+impl Nil for TestValue {
+    fn nil() -> Self {
+        return TestValue::from("nil");
+    }
+}

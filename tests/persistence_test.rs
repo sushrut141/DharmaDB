@@ -5,6 +5,7 @@ use dharmadb::errors::Errors;
 use dharmadb::options::DharmaOpts;
 use dharmadb::persistence::Persistence;
 use dharmadb::storage::sorted_string_table_reader::SSTableReader;
+use dharmadb::traits::Nil;
 
 mod common;
 
@@ -59,6 +60,66 @@ fn test_persistence_get_after_flush() {
         let get_value = get_result.unwrap();
         assert!(get_value.is_some());
         assert_eq!(get_value.unwrap(), value);
+    }
+}
+
+#[test]
+fn test_persistence_get_after_flush_with_duplicate_keys() {
+    let mut data = Vec::new();
+    for i in 0..50 {
+        data.push((TestKey::from(i), TestValue::from("old value")));
+        data.push((TestKey::from(i), TestValue::from("new value")));
+    }
+    let options = DharmaOpts::default();
+    cleanup_paths(&options);
+    let persistence_result: Result<Persistence<TestKey>, Errors> =
+        Persistence::create::<TestValue>(options);
+    let mut persistence = persistence_result.unwrap();
+    let flush_result = persistence.flush(&data);
+    assert!(flush_result.is_ok());
+
+    for i in 0..50 {
+        let get_result = persistence.get::<TestValue>(&TestKey::from(i));
+        assert!(get_result.is_ok());
+        let maybe_value = get_result.unwrap();
+        assert!(maybe_value.is_some());
+        assert_eq!(maybe_value.unwrap(), TestValue::from("new value"));
+    }
+}
+
+#[test]
+fn test_persistence_delete_after_flush() {
+    let data = get_test_data(200);
+    let options = DharmaOpts::default();
+    cleanup_paths(&options);
+    let persistence_result: Result<Persistence<TestKey>, Errors> =
+        Persistence::create::<TestValue>(options);
+    let mut persistence = persistence_result.unwrap();
+    let flush_result = persistence.flush(&data);
+    assert!(flush_result.is_ok());
+
+    // delete data
+    let mut delete_data = Vec::new();
+    for i in 0..100 {
+        delete_data.push((TestKey::from(i), TestValue::nil()));
+    }
+    let delete_flush_result = persistence.flush(&delete_data);
+    assert!(delete_flush_result.is_ok());
+
+    // data in deleted range is empty
+    for i in 0..100 {
+        let get_result = persistence.get::<TestValue>(&TestKey::from(i));
+        assert!(get_result.is_ok());
+        let maybe_value = get_result.unwrap();
+        assert!(maybe_value.is_none());
+    }
+    // data in non deleted range is present
+    for (key, value) in get_test_data_in_range(100, 200) {
+        let get_result = persistence.get::<TestValue>(&key);
+        assert!(get_result.is_ok());
+        let maybe_value = get_result.unwrap();
+        assert!(maybe_value.is_some());
+        assert_eq!(maybe_value.unwrap(), value);
     }
 }
 

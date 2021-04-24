@@ -75,22 +75,31 @@ where
             let mut reader = SSTableReader::from(&address.path, self.options.block_size_in_bytes)?;
             // try to find the value in the sstable
             let seek_result = reader.seek_closest(address.offset);
-            // if seek offset is invalid then return errror
+            // if seek offset is invalid then return error
             // this should never happen as long as SSTables and Sparse Index are in sync
+            let mut prev = None;
             if seek_result.is_ok() {
                 while reader.has_next() {
                     let sstable_value = reader.read();
                     let record = bincode::deserialize::<Value<K, V>>(&sstable_value.data).unwrap();
                     match record.key.cmp(key) {
                         Ordering::Less => {
+                            prev = Some(record);
                             reader.next();
                         }
                         Ordering::Equal => {
-                            return Ok(Some(record.value));
+                            prev = Some(record);
+                            reader.next();
                         }
                         Ordering::Greater => {
-                            return Ok(None);
+                            break;
                         }
+                    }
+                }
+                if prev.is_some() {
+                    let record = prev.unwrap();
+                    if record.key.cmp(key) == Ordering::Equal && record.value != V::nil() {
+                        return Ok(Some(record.value));
                     }
                 }
             }
@@ -197,6 +206,7 @@ where
                     let record: Value<K, V> =
                         bincode::deserialize(sstable_value.data.as_slice()).unwrap();
                     let key = record.key;
+                    println!("saving key in index {}", key);
                     let offset = sstable_value.offset;
                     let address = TableAddress::new(path, offset);
                     index.update(key.clone(), address);

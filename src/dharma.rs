@@ -57,9 +57,15 @@ where
     pub fn get(&mut self, key: &K) -> Result<Option<V>, Errors> {
         let maybe_in_memory = self.memory.get(key);
         if maybe_in_memory.is_some() {
-            return Ok(maybe_in_memory);
+            let retrieved_value = maybe_in_memory.unwrap();
+            // check value is not delete marker
+            let marker: V = V::nil();
+            if marker == retrieved_value {
+                return Ok(None);
+            }
+            return Ok(Some(retrieved_value));
         }
-        self.persistence.get(key)
+        self.persistence.get::<V>(key)
     }
 
     /// Associate the supplied value with the key.
@@ -88,6 +94,22 @@ where
         Err(Errors::WAL_WRITE_FAILED)
     }
 
+    /// Delete the value associated with the key.
+    /// Delete operation uses the `nil` method that is implemented
+    /// by the `ResourceValue`.
+    ///
+    /// # Arguments
+    ///  - _key_ - The key whose associated value to delete.
+    ///
+    /// # Returns
+    /// Result that resolves:
+    ///  - _Ok_ - () if operation succeeded.
+    ///  - _Err_ - Error that occored deleting key.
+    pub fn delete(&mut self, key: K) -> Result<(), Errors> {
+        let value: V = V::nil();
+        return self.put(key, value);
+    }
+
     /// In case of database crash, this operation attempts to recover
     /// the database from the Write Ahead Log. This operation may lead to
     /// data loss.
@@ -108,10 +130,6 @@ where
             db.put(key, value);
         }
         return Ok(db);
-    }
-
-    fn delete(&mut self, key: &K) -> Result<(), Errors> {
-        unimplemented!()
     }
 
     /// Flush the in-memory values to disk. This method is automatically called
