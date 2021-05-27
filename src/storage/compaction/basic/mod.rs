@@ -1,5 +1,5 @@
-use crate::errors::Errors;
 use crate::options::DharmaOpts;
+use crate::result::Errors;
 use crate::storage::block::Value;
 use crate::storage::compaction::basic::errors::{CompactionError, CompactionErrors};
 use crate::storage::compaction::CompactionStrategy;

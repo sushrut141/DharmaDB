@@ -1,4 +1,4 @@
-use crate::errors::Result;
+use crate::result::Result;
 use crate::options::DharmaOpts;
 use crate::traits::{ResourceKey, ResourceValue};
 use serde::{Deserialize, Serialize};

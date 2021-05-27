@@ -2,7 +2,7 @@ use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;
 use crate::common::{cleanup_paths, get_test_data, get_test_data_in_range};
 use dharmadb::dharma::Dharma;
-use dharmadb::errors::{Errors, Result};
+use dharmadb::result::{Errors, Result};
 use dharmadb::options::DharmaOpts;
 use dharmadb::storage::write_ahead_log::WriteAheadLog;
 

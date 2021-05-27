@@ -1,6 +1,6 @@
 pub mod dharma;
-pub mod errors;
 pub mod options;
+pub mod result;
 pub mod traits;
 
 pub mod persistence;

@@ -2,7 +2,7 @@ use core::mem::size_of;
 
 use subway::skiplist::SkipList;
 
-use crate::errors::{Errors, Result};
+use crate::result::{Errors, Result};
 use crate::options::DharmaOpts;
 use crate::persistence::Persistence;
 use crate::traits::{ResourceKey, ResourceValue};

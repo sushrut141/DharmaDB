@@ -1,4 +1,4 @@
-use crate::errors::{Errors, Result};
+use crate::result::{Errors, Result};
 use crate::options::DharmaOpts;
 use crate::storage::block::{create_blocks, write_block_to_disk, Record, Value};
 use crate::traits::{ResourceKey, ResourceValue};

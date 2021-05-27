@@ -1,4 +1,4 @@
-use crate::errors::{Errors, Result};
+use crate::result::{Errors, Result};
 use crate::storage::block::{to_record_type, Record, RecordType, Value};
 use crate::traits::{ResourceKey, ResourceValue};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};

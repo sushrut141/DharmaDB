@@ -1,4 +1,4 @@
-use crate::errors::{Errors, Result};
+use crate::result::{Errors, Result};
 use crate::options::DharmaOpts;
 use crate::sparse_index::{SparseIndex, TableAddress};
 use crate::storage::block::Value;
