@@ -2,10 +2,11 @@ use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;
 use crate::common::{cleanup_paths, get_test_data, get_test_data_in_range};
 use dharmadb::dharma::Dharma;
-use dharmadb::result::{Error, Result};
 use dharmadb::options::DharmaOpts;
+use dharmadb::result::Result;
 use dharmadb::storage::write_ahead_log::WriteAheadLog;
 
+#[cfg(test)]
 mod common;
 
 #[test]
@@ -47,7 +48,7 @@ fn test_delete() {
     // value should not be retrievable after delete
     let get_result = db.get(&key);
     assert!(get_result.is_ok());
-    assert_eq!(get_result, Ok(None));
+    assert_eq!(get_result.unwrap().is_none(), true);
 }
 
 #[test]
@@ -57,7 +58,7 @@ fn test_database_flush() {
     let data = get_test_data(50);
     let mut db: Dharma<TestKey, TestValue> = Dharma::create(options).unwrap();
     for (key, value) in data {
-        db.put(key, value);
+        db.put(key, value).unwrap();
     }
     let flush_result = db.flush();
     assert!(flush_result.is_ok());
@@ -71,7 +72,7 @@ fn test_database_operations_after_flush() {
     let expected_data = data.clone();
     let mut db: Dharma<TestKey, TestValue> = Dharma::create(options).unwrap();
     for (key, value) in data {
-        db.put(key, value);
+        db.put(key, value).unwrap();
     }
     // flush database to ensure no data remains in memory
     let flush_result = db.flush();
@@ -92,16 +93,15 @@ fn test_database_delete_after_flush() {
     let options = DharmaOpts::default();
     cleanup_paths(&options);
     let data = get_test_data(10);
-    let expected_data = data.clone();
     let mut db: Dharma<TestKey, TestValue> = Dharma::create(options).unwrap();
     for (key, value) in data {
-        db.put(key, value);
+        db.put(key, value).unwrap();
     }
     // delete keys in range of 0..5
     for i in 0..5 {
         assert!(db.delete(TestKey::from(i)).is_ok());
     }
-    db.flush();
+    db.flush().unwrap();
     // data in delete range should return null
     for i in 0..5 {
         let get_result = db.get(&TestKey::from(i));
@@ -128,7 +128,7 @@ fn test_database_reads_data_from_existing_sstable() {
     let test_data_2 = get_test_data(200);
     let mut db = Dharma::create(options.clone()).unwrap();
     for (key, value) in test_data_1 {
-        db.put(key, value);
+        db.put(key, value).unwrap();
     }
     let flush_result = db.flush();
     assert!(flush_result.is_ok());
@@ -150,10 +150,10 @@ fn test_database_initialization_fails_when_wal_exists_at_path() {
     let data = get_test_data(200);
     let mut wal = WriteAheadLog::create(options.clone()).unwrap();
     for (key, value) in data {
-        wal.append(key, value);
+        wal.append(key, value).unwrap();
     }
     // initializing database should fail due to exustence of wal
-    let mut db_result: Result<Dharma<TestKey, TestValue>> = Dharma::create(options.clone());
+    let db_result: Result<Dharma<TestKey, TestValue>> = Dharma::create(options.clone());
     assert!(db_result.is_err());
 }
 
@@ -166,10 +166,10 @@ fn test_database_recovery_from_existing_wal() {
     let expected_data = get_test_data(200);
     let mut wal = WriteAheadLog::create(options.clone()).unwrap();
     for (key, value) in data {
-        wal.append(key, value);
+        wal.append(key, value).unwrap();
     }
     // initializing database should fail due to exustence of wal
-    let mut db_result: Result<Dharma<TestKey, TestValue>> = Dharma::create(options.clone());
+    let db_result: Result<Dharma<TestKey, TestValue>> = Dharma::create(options.clone());
     assert!(db_result.is_err());
     // attempt database recovery
     let new_db_result = Dharma::<TestKey, TestValue>::recover::<TestKey, TestValue>(options);

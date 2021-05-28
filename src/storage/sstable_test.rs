@@ -1,9 +1,14 @@
 #[cfg(test)]
 mod tests {
-    use crate::options::DharmaOpts;
-    use crate::storage::sorted_string_table_writer::{read_sstable, write_sstable};
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::path::Path;
+    // use crate::options::DharmaOpts;
+    // use crate::storage::sorted_string_table_writer::{read_sstable, write_sstable};
+    use serde::{
+        Deserialize,
+        Serialize,
+        //Deserializer,
+        //Serializer
+    };
+    //use std::path::Path;
 
     #[derive(Serialize, Deserialize, Debug)]
     struct TestData {
@@ -23,14 +28,14 @@ mod tests {
         }
     }
 
-    fn create_test_data(start: u8, end: u8) -> Vec<(u8, TestData)> {
-        let mut output = Vec::new();
-        for i in start..end {
-            let data = TestData::new(i, String::from("data in record"));
-            output.push((i, data));
-        }
-        output
-    }
+    // fn create_test_data(start: u8, end: u8) -> Vec<(u8, TestData)> {
+    //     let mut output = Vec::new();
+    //     for i in start..end {
+    //         let data = TestData::new(i, String::from("data in record"));
+    //         output.push((i, data));
+    //     }
+    //     output
+    // }
 
     // #[test]
     // fn test_sstable() {

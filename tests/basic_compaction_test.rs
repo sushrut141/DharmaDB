@@ -8,6 +8,7 @@ use dharmadb::storage::sorted_string_table_reader::SSTableReader;
 use dharmadb::storage::sorted_string_table_writer::write_sstable;
 use dharmadb::traits::Nil;
 
+#[cfg(test)]
 mod common;
 
 #[test]
@@ -37,10 +38,10 @@ fn test_basic_compaction_with_tables_of_same_size() {
     let mut reader = reader_result.unwrap();
     let mut output = Vec::new();
     while reader.has_next() {
-        let value = reader.read();
+        let value = reader.read().unwrap();
         let record: Value<TestKey, TestValue> = value.to_record().unwrap();
         output.push((record.key, record.value));
-        reader.next();
+        reader.next().unwrap();
     }
     assert_eq!(output.len(), 500);
     data_1.append(&mut data_2);
@@ -76,10 +77,10 @@ fn test_basic_compaction_with_tables_of_different_size() {
     let mut reader = reader_result.unwrap();
     let mut output = Vec::new();
     while reader.has_next() {
-        let value = reader.read();
+        let value = reader.read().unwrap();
         let record: Value<TestKey, TestValue> = value.to_record().unwrap();
         output.push((record.key, record.value));
-        reader.next();
+        reader.next().unwrap();
     }
     assert_eq!(output.len(), 700);
     data_1.append(&mut data_2);
@@ -114,10 +115,10 @@ fn test_basic_compaction_with_intersecting_values() {
     let mut reader = reader_result.unwrap();
     let mut output = Vec::new();
     while reader.has_next() {
-        let value = reader.read();
+        let value = reader.read().unwrap();
         let record: Value<TestKey, TestValue> = value.to_record().unwrap();
         output.push((record.key, record.value));
-        reader.next();
+        reader.next().unwrap();
     }
     assert_eq!(output.len(), 220);
     data_1.append(&mut data_2);
@@ -128,7 +129,7 @@ fn test_basic_compaction_with_intersecting_values() {
 
 #[test]
 fn test_basic_compaction_ignores_delete_markers() {
-    let mut data_1 = get_test_data_in_range(0, 200);
+    let data_1 = get_test_data_in_range(0, 200);
     let mut data_2 = Vec::new();
     // create delete markers for values in range(0-50)
     for i in 0..50 {
@@ -156,10 +157,10 @@ fn test_basic_compaction_ignores_delete_markers() {
     let mut reader = reader_result.unwrap();
     let mut output = Vec::new();
     while reader.has_next() {
-        let value = reader.read();
+        let value = reader.read().unwrap();
         let record: Value<TestKey, TestValue> = value.to_record().unwrap();
         output.push((record.key, record.value));
-        reader.next();
+        reader.next().unwrap();
     }
     assert_eq!(output.len(), 150);
     // contains values from 50..200

@@ -34,8 +34,8 @@ pub fn cleanup_paths(options: &DharmaOpts) {
     let sstable_dir = format!("{0}/tables", options.path);
     let wal_path = format!("{0}/wal.log", options.path);
     let compaction_path = format!("{}/compaction", options.path);
-    remove_dir_all(&sstable_dir);
-    remove_dir_all(&compaction_path);
-    create_dir(&sstable_dir);
-    remove_file(&wal_path);
+    remove_dir_all(&sstable_dir).unwrap();
+    remove_dir_all(&compaction_path).unwrap();
+    create_dir(&sstable_dir).unwrap();
+    remove_file(&wal_path).unwrap();
 }

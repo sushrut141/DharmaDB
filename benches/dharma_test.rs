@@ -1,6 +1,11 @@
 mod common;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{
+    // black_box,
+    criterion_group,
+    criterion_main,
+    Criterion,
+};
 
 use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;

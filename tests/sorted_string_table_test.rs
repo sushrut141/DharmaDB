@@ -7,6 +7,7 @@ use dharmadb::storage::sorted_string_table_reader::SSTableReader;
 use dharmadb::storage::sorted_string_table_writer::write_sstable;
 use std::fs::File;
 
+#[cfg(test)]
 mod common;
 
 #[test]
@@ -23,12 +24,12 @@ fn test_sstables_io() {
     let mut result: Vec<(TestKey, TestValue)> = Vec::new();
     let mut count = 0;
     while reader.has_next() {
-        let value = reader.read();
+        let value = reader.read().unwrap();
         let record: Value<TestKey, TestValue> =
             bincode::deserialize::<Value<TestKey, TestValue>>(&value.data).unwrap();
         result.push((record.key, record.value));
         count += 1;
-        reader.next();
+        reader.next().unwrap();
     }
     assert_eq!(count, values.len());
     assert_eq!(values, result);
