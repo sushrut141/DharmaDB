@@ -1,4 +1,4 @@
-use crate::result::{Errors, Result};
+use crate::result::{Error, Result};
 use crate::options::DharmaOpts;
 use crate::storage::block::{create_blocks, write_block_to_disk, Block, Value};
 use crate::storage::sorted_string_table_reader::SSTableReader;
@@ -26,9 +26,9 @@ impl WriteAheadLog {
                     writer,
                 });
             }
-            return Err(Errors::WalLogCreationFailed);
+            return Err(Error::WalLogCreationFailed);
         }
-        Err(Errors::DbPathDirty)
+        Err(Error::DbPathDirty)
     }
 
     /// Write the key and value to the Write Ahead Log.
@@ -49,7 +49,7 @@ impl WriteAheadLog {
         for block in blocks {
             let write_result = write_block_to_disk(&self.options, &mut self.writer, &block);
             if write_result.is_err() {
-                return Err(Errors::WalWriteFailed);
+                return Err(Error::WalWriteFailed);
             }
         }
         Ok(())
@@ -66,7 +66,7 @@ impl WriteAheadLog {
         if delete_wal_result.is_ok() {
             return WriteAheadLog::create(self.options.clone());
         }
-        Err(Errors::WalLogCreationFailed)
+        Err(Error::WalLogCreationFailed)
     }
 
     /// Delete the Write Ahead Log.
@@ -79,7 +79,7 @@ impl WriteAheadLog {
         let path = format!("{0}/{1}", self.options.path, WRITE_AHEAD_LOG_NAME);
         let delete_wal_result = remove_file(&path);
         if delete_wal_result.is_err() {
-            return Err(Errors::WalCleanupFailed);
+            return Err(Error::WalCleanupFailed);
         }
         Ok(())
     }
@@ -100,6 +100,6 @@ impl WriteAheadLog {
         }
         return remove_file(&path)
             .and_then(|_| Ok(data))
-            .map_err(|_| Errors::WalBootstrapFailed);
+            .map_err(|_| Error::WalBootstrapFailed);
     }
 }

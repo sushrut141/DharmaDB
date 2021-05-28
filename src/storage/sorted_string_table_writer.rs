@@ -1,4 +1,4 @@
-use crate::result::{Errors, Result};
+use crate::result::{Error, Result};
 use crate::options::DharmaOpts;
 use crate::storage::block::{create_blocks, write_block_to_disk, Record, Value};
 use crate::traits::{ResourceKey, ResourceValue};
@@ -50,12 +50,12 @@ pub fn write_sstable<K: ResourceKey, V: ResourceValue>(
                     "Failed to write block from chunk {0} to disk",
                     block_counter
                 );
-                return Err(Errors::SsTableCreationFailed);
+                return Err(Error::SsTableCreationFailed);
             }
         }
     } else {
         log::error!("Failed to create SSTable from chunk from values");
-        return Err(Errors::SsTableCreationFailed);
+        return Err(Error::SsTableCreationFailed);
     }
     Ok(PathBuf::from(path_str))
 }
@@ -96,12 +96,12 @@ pub fn write_sstable_at_path<K: ResourceKey, V: ResourceValue>(
                     "Failed to write block from chunk {0} to disk",
                     block_counter
                 );
-                return Err(Errors::SsTableCreationFailed);
+                return Err(Error::SsTableCreationFailed);
             }
         }
     } else {
         log::error!("Failed to create SSTable from chunk from values");
-        return Err(Errors::SsTableCreationFailed);
+        return Err(Error::SsTableCreationFailed);
     }
     Ok(())
 }
@@ -212,5 +212,5 @@ pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
         }
         return Ok(output);
     }
-    Err(Errors::SsTableReadFailed)
+    Err(Error::SsTableReadFailed)
 }

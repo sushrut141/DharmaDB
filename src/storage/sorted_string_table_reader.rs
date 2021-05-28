@@ -1,4 +1,4 @@
-use crate::result::{Errors, Result};
+use crate::result::{Error, Result};
 use crate::storage::block::{to_record_type, Record, RecordType, Value};
 use crate::traits::{ResourceKey, ResourceValue};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};
@@ -15,7 +15,7 @@ pub struct SSTableValue {
 impl SSTableValue {
     pub fn to_record<K: ResourceKey, V: ResourceValue>(&self) -> Result<Value<K, V>> {
         let value_result = bincode::deserialize::<Value<K, V>>(self.data.as_slice());
-        return value_result.map_err(|err| Errors::RecordDeserializeationFailed);
+        return value_result.map_err(|err| Error::RecordDeserializeationFailed);
     }
 }
 
@@ -67,7 +67,7 @@ impl SSTableReader {
                 reader,
             });
         }
-        return Err(Errors::SsTableReadFailed);
+        return Err(Error::SsTableReadFailed);
     }
 
     /// Get the paths to valid SSTables within the supplied directory.
@@ -97,7 +97,7 @@ impl SSTableReader {
             output.sort();
             return Ok(output);
         }
-        Err(Errors::SsTableReadFailed)
+        Err(Error::SsTableReadFailed)
     }
 
     /// Read a value from the SSTable.
@@ -186,7 +186,7 @@ impl SSTableReader {
             self.buffer_offset = offset - block_offset;
             return Ok(());
         }
-        Err(Errors::SsTableInvalidReadOffset)
+        Err(Error::SsTableInvalidReadOffset)
     }
 
     /// Check whether more values can be processed in the SSTable.

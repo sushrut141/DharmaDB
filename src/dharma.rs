@@ -2,7 +2,7 @@ use core::mem::size_of;
 
 use subway::skiplist::SkipList;
 
-use crate::result::{Errors, Result};
+use crate::result::{Error, Result};
 use crate::options::DharmaOpts;
 use crate::persistence::Persistence;
 use crate::traits::{ResourceKey, ResourceValue};
@@ -91,7 +91,7 @@ where
             }
             return Ok(());
         }
-        Err(Errors::WalWriteFailed)
+        Err(Error::WalWriteFailed)
     }
 
     /// Delete the value associated with the key.

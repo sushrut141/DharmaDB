@@ -1,4 +1,4 @@
-use crate::result::{Errors, Result};
+use crate::result::{Error, Result};
 use crate::options::DharmaOpts;
 use crate::sparse_index::{SparseIndex, TableAddress};
 use crate::storage::block::Value;
@@ -45,7 +45,7 @@ where
                 let load_result =
                     Persistence::populate_index_from_path::<V>(&options, &path, &mut index);
                 if load_result.is_err() {
-                    return Err(Errors::DbIndexInitializationFailed);
+                    return Err(Error::DbIndexInitializationFailed);
                 }
             }
             return Ok(Persistence {
@@ -123,7 +123,7 @@ where
         if log_write_result.is_ok() {
             return Ok(());
         }
-        Err(Errors::DbWriteFailed)
+        Err(Error::DbWriteFailed)
     }
 
     /// Flush the list of key value pairs to disk. This method assumes that list is already
@@ -170,11 +170,11 @@ where
                 &mut self.index,
             );
             if index_update_result.is_err() {
-                return Err(Errors::DbIndexUpdateFailed);
+                return Err(Error::DbIndexUpdateFailed);
             }
             return Ok(());
         }
-        Err(Errors::SsTableCreationFailed)
+        Err(Error::SsTableCreationFailed)
     }
 
     /// Attempt to recover data from existing WAL. This operation does not ensure
@@ -214,7 +214,7 @@ where
             }
             return Ok(());
         }
-        Err(Errors::DbIndexUpdateFailed)
+        Err(Error::DbIndexUpdateFailed)
     }
 
     fn swap_sstables_with_compacted_table(&mut self, compacted_path: &PathBuf) -> Result<String> {
@@ -227,7 +227,7 @@ where
         return copy(compacted_path, Path::new(&new_sstable_path))
             .and_then(|_| remove_file(compacted_path))
             .map(|_| new_sstable_path)
-            .map_err(|_| Errors::CompactionCleanupFailed);
+            .map_err(|_| Error::CompactionCleanupFailed);
     }
 }
 

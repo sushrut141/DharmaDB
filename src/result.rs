@@ -3,10 +3,10 @@
 use thiserror::Error;
 
 /// Result
-pub type Result<T> = std::result::Result<T, Errors>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Error, Debug, PartialEq)]
-pub enum Errors {
+pub enum Error {
     #[error(
         "Write Ahead log Found at supplied path. Try running \
             recovery operation to start database."
