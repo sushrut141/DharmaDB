@@ -5,7 +5,7 @@ use thiserror::Error;
 /// Result
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum Error {
     #[error(
         "Write Ahead log Found at supplied path. Try running \
@@ -42,4 +42,8 @@ pub enum Error {
     RecordDeserializeationFailed,
     #[error("Compaction cleanup failed.")]
     CompactionCleanupFailed,
+    #[error(transparent)]
+    StdIoError(#[from] std::io::Error),
+    #[error(transparent)]
+    BincodeError(#[from] Box<bincode::ErrorKind>),
 }

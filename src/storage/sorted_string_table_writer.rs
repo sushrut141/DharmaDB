@@ -1,5 +1,5 @@
-use crate::result::{Error, Result};
 use crate::options::DharmaOpts;
+use crate::result::{Error, Result};
 use crate::storage::block::{create_blocks, write_block_to_disk, Record, Value};
 use crate::traits::{ResourceKey, ResourceValue};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};
@@ -125,8 +125,8 @@ pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
     let mut output: Vec<Value<K, V>> = Vec::new();
     let file_result = File::open(path);
     if file_result.is_ok() {
-        let file = file_result.unwrap();
-        let metadata = file.metadata().unwrap();
+        let file = file_result?;
+        let metadata = file.metadata()?;
         let total_size_in_bytes = metadata.len();
         // read number of blocks from metadata embedded in SStable rather than relying
         // on options. options might change which might cause read error due to mismatch
@@ -140,8 +140,7 @@ pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
         while i < block_count {
             let mut buffer = vec![0u8; options.block_size_in_bytes as usize];
             // read blocksize number of bytes
-            // TODO: handle read error
-            reader.read_at(&mut buffer, i * options.block_size_in_bytes as u64);
+            reader.read_at(&mut buffer, i * options.block_size_in_bytes as u64)?;
             // unpack bytes array into records
             let mut r = 0;
             while r < buffer.len() {
@@ -171,8 +170,7 @@ pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
                         // skip record type byte(1) and size bytes(2)
                         r += 3;
                         // read size bytes
-                        let decoded: Value<K, V> =
-                            bincode::deserialize(&buffer[r..r + size]).unwrap();
+                        let decoded: Value<K, V> = bincode::deserialize(&buffer[r..r + size])?;
                         output.push(decoded);
                         r += size;
                     }
@@ -199,7 +197,7 @@ pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
                             record_byte_buffer.push(buffer[r + i]);
                         }
                         let decoded: Value<K, V> =
-                            bincode::deserialize(record_byte_buffer.as_slice()).unwrap();
+                            bincode::deserialize(record_byte_buffer.as_slice())?;
                         output.push(decoded);
                         r += size;
                         // last chunk in record processed so create a new buffer
