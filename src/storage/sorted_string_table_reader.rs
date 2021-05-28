@@ -105,7 +105,7 @@ impl SSTableReader {
     /// # Returns
     /// The value read from the SSTable.
     pub fn read(&mut self) -> Result<SSTableValue> {
-        let mut previous_buffer_offset = self.buffer_offset;
+        let previous_buffer_offset = self.buffer_offset;
         let previous_offset = self.offset;
         let previous_buffer = self.buffer.clone();
         let mut temp_buffer = Vec::new();
@@ -182,7 +182,7 @@ impl SSTableReader {
             let block_number: usize = (offset as f64 / self.block_size as f64).floor() as usize;
             let block_offset = block_number * self.block_size;
             // load the block at this offset
-            self.load_block_at(block_offset);
+            self.load_block_at(block_offset)?;
             self.buffer_offset = offset - block_offset;
             return Ok(());
         }

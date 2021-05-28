@@ -1,5 +1,5 @@
-use crate::result::Result;
 use crate::options::DharmaOpts;
+use crate::result::Result;
 use crate::traits::{ResourceKey, ResourceValue};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -243,11 +243,11 @@ pub fn write_block_to_disk(
                 let final_bytes = [type_bytes[0], size_bytes[0], size_bytes[1]];
                 let mut padding_bytes: Vec<u8> =
                     Vec::with_capacity(record.data_size_in_bytes as usize);
-                for i in 0..record.data_size_in_bytes {
+                for _ in 0..record.data_size_in_bytes {
                     padding_bytes.push(0u8);
                 }
-                file_handle.write(&final_bytes);
-                file_handle.write(padding_bytes.as_slice());
+                file_handle.write(&final_bytes)?;
+                file_handle.write(padding_bytes.as_slice())?;
                 written_size_in_bytes += final_bytes.len() + padding_bytes.len();
             }
             _ => {
@@ -255,10 +255,10 @@ pub fn write_block_to_disk(
                 let type_bytes: [u8; 1] = record_type.to_be_bytes();
                 let size_bytes: [u8; 2] = record.data_size_in_bytes.to_be_bytes();
                 let data_bytes: &[u8] = &record.data;
-                file_handle.write(&type_bytes);
-                file_handle.write(&size_bytes);
+                file_handle.write(&type_bytes)?;
+                file_handle.write(&size_bytes)?;
                 written_size_in_bytes += 3;
-                file_handle.write(data_bytes);
+                file_handle.write(data_bytes)?;
                 written_size_in_bytes += data_bytes.len();
             }
         }
@@ -276,16 +276,16 @@ pub fn write_block_to_disk(
                 padding.push(0u8);
             }
             // TODO: merge these file system writes into a single call and benchmark performance
-            file_handle.write(&type_bytes);
-            file_handle.write(&size_bytes);
-            file_handle.write(padding.as_slice());
+            file_handle.write(&type_bytes)?;
+            file_handle.write(&size_bytes)?;
+            file_handle.write(padding.as_slice())?;
         } else {
             let mut padding: Vec<u8> = Vec::with_capacity(available_space_in_bytes as usize);
             for _ in 0..available_space_in_bytes {
                 padding.push(0u8);
             }
-            file_handle.write(padding.as_slice());
-            available_space_in_bytes = 0;
+            file_handle.write(padding.as_slice())?;
+            //available_space_in_bytes = 0;
         }
     }
     Ok(())

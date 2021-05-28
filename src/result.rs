@@ -1,5 +1,4 @@
 //! Errors, type aliases, and functions related to working with `Result`.
-
 use thiserror::Error;
 
 /// Result
@@ -42,6 +41,8 @@ pub enum Error {
     RecordDeserializeationFailed,
     #[error("Compaction cleanup failed.")]
     CompactionCleanupFailed,
+    #[error(transparent)]
+    CompactionError(#[from] crate::storage::compaction::basic::errors::CompactionError),
     #[error(transparent)]
     StdIoError(#[from] std::io::Error),
     #[error(transparent)]

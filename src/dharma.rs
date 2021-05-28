@@ -2,9 +2,9 @@ use core::mem::size_of;
 
 use subway::skiplist::SkipList;
 
-use crate::result::{Error, Result};
 use crate::options::DharmaOpts;
 use crate::persistence::Persistence;
+use crate::result::{Error, Result};
 use crate::traits::{ResourceKey, ResourceValue};
 
 /// Represents the database interface using which data can be persisted and retrieved.
@@ -125,7 +125,7 @@ where
         let data = Persistence::<T>::recover(options.clone())?;
         let mut db = Dharma::create(options.clone())?;
         for (key, value) in data {
-            db.put(key, value);
+            db.put(key, value)?;
         }
         return Ok(db);
     }
@@ -169,6 +169,6 @@ where
     V: ResourceValue,
 {
     fn drop(&mut self) {
-        self.flush();
+        self.flush().expect("Failed to flush");
     }
 }

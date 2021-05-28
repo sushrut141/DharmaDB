@@ -1,5 +1,5 @@
-use crate::result::{Error, Result};
 use crate::options::DharmaOpts;
+use crate::result::{Error, Result};
 use crate::storage::block::{create_blocks, write_block_to_disk, Block, Value};
 use crate::storage::sorted_string_table_reader::SSTableReader;
 use crate::traits::{ResourceKey, ResourceValue};
@@ -93,10 +93,10 @@ impl WriteAheadLog {
             SSTableReader::from(&PathBuf::from(&path), options.block_size_in_bytes).unwrap();
         let mut data = Vec::new();
         while reader.has_next() {
-            let value = reader.read();
+            let value = reader.read()?;
             let record: Value<K, V> = value.to_record::<K, V>().unwrap();
             data.push((record.key, record.value));
-            reader.next();
+            reader.next()?;
         }
         return remove_file(&path)
             .and_then(|_| Ok(data))

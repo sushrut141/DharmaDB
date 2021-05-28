@@ -1,5 +1,4 @@
 use crate::traits::ResourceKey;
-use std::fmt::Display;
 use std::path::PathBuf;
 use subway::skiplist::SkipList;
 

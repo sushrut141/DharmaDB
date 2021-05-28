@@ -1,15 +1,13 @@
 use crate::options::DharmaOpts;
+use crate::result::{Error, Result};
 use crate::storage::block::Value;
-use crate::storage::compaction::basic::errors::{CompactionError, CompactionErrors};
-use crate::storage::compaction::CompactionStrategy;
+use crate::storage::compaction::basic::errors::CompactionError;
 use crate::storage::sorted_string_table_reader::SSTableReader;
-use crate::storage::sorted_string_table_writer::{write_sstable, write_sstable_at_path};
+use crate::storage::sorted_string_table_writer::write_sstable_at_path;
 use crate::traits::{ResourceKey, ResourceValue};
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BinaryHeap, HashMap};
 use std::fs::{create_dir_all, File};
-use std::io::Write;
-use std::panic::resume_unwind;
 use std::path::{Path, PathBuf};
 
 pub mod errors;
@@ -114,17 +112,11 @@ impl BasicCompaction {
 }
 
 impl BasicCompaction {
-    fn strategy(&self) -> CompactionStrategy {
-        CompactionStrategy::BASIC
-    }
-
-    pub fn compact<K: ResourceKey, V: ResourceValue>(
-        &self,
-    ) -> Result<Option<PathBuf>, CompactionError> {
-        let mut count: u64 = 0;
+    pub fn compact<K: ResourceKey, V: ResourceValue>(&self) -> Result<Option<PathBuf>> {
         let input_path = &self.options.input_path;
         // list all SSTables in the directory in sorted order
         let sstable_paths_result = SSTableReader::get_valid_table_paths(input_path);
+
         if sstable_paths_result.is_ok() {
             let paths = sstable_paths_result.unwrap();
             if paths.len() < self.options.threshold as usize {
@@ -137,19 +129,19 @@ impl BasicCompaction {
                 .collect();
             // create new SSTable at output path
             let output_path = Path::new(&self.options.output_path);
-            if output_path.parent().is_some() && !output_path.parent().unwrap().exists() {
-                create_dir_all(output_path.parent().unwrap());
-            }
-            let output_sstable_result = File::create(output_path);
-            if output_sstable_result.is_err() {
-                return Err(CompactionError::with(
-                    CompactionErrors::INVALID_COMPACTION_OUTPUT_PATH,
-                ));
-            }
+            match output_path.parent() {
+                Some(parent) => {
+                    if !parent.exists() {
+                        create_dir_all(parent)?;
+                    }
+                }
+                None => (),
+            };
+            let _ = File::create(output_path)
+                .map_err(|_| CompactionError::InvalidCompactionOutputPath)?;
             let size = sstables.len();
-            let mut output_sstable_handle = output_sstable_result.unwrap();
             let mut valid: Vec<bool> = Vec::with_capacity(size);
-            for i in 0..size {
+            for _ in 0..size {
                 valid.push(true);
             }
             let mut result = Vec::new();
@@ -158,13 +150,13 @@ impl BasicCompaction {
             let mut heap = BinaryHeap::new();
             let mut prev_min: Option<Value<K, V>> = None;
             for i in 0..size {
-                let sstable_value = sstables[i].read();
+                let sstable_value = sstables[i].read()?;
                 let record_result = sstable_value.to_record();
                 if record_result.is_ok() {
                     let record: Value<K, V> = record_result.unwrap();
                     heap.push(Reverse(CompactionHeapNode::new(record.clone(), i)));
                     minimums.insert(i, record.clone());
-                    sstables[i].next();
+                    sstables[i].next()?;
                 }
             }
             while !heap.is_empty() {
@@ -189,7 +181,7 @@ impl BasicCompaction {
                 }
                 // advance the sstable pointer housing the minimum value
                 if sstables[minimum_node.idx].has_next() {
-                    let new_sstable_value = sstables[minimum_node.idx].read();
+                    let new_sstable_value = sstables[minimum_node.idx].read()?;
                     let new_record_result = new_sstable_value.to_record();
                     if new_record_result.is_ok() {
                         let new_record: Value<K, V> = new_record_result.unwrap();
@@ -198,7 +190,7 @@ impl BasicCompaction {
                             new_record.clone(),
                             minimum_node.idx,
                         )));
-                        sstables[minimum_node.idx].next();
+                        sstables[minimum_node.idx].next()?;
                     }
                 }
             }
@@ -206,11 +198,12 @@ impl BasicCompaction {
                 &self.options.db_options,
                 &result,
                 &PathBuf::from(&self.options.output_path),
-            );
+            )?;
             return Ok(Some(PathBuf::from(&self.options.output_path)));
         }
-        Err(CompactionError::with(
-            CompactionErrors::INVALID_COMPACTION_INPUT_PATH,
+
+        Err(Error::CompactionError(
+            CompactionError::InvalidCompactionInputPath,
         ))
     }
 }

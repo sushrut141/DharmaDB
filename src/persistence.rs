@@ -1,5 +1,5 @@
-use crate::result::{Error, Result};
 use crate::options::DharmaOpts;
+use crate::result::{Error, Result};
 use crate::sparse_index::{SparseIndex, TableAddress};
 use crate::storage::block::Value;
 use crate::storage::compaction::basic::{BasicCompaction, BasicCompactionOpts};
@@ -80,16 +80,16 @@ where
             let mut prev = None;
             if seek_result.is_ok() {
                 while reader.has_next() {
-                    let sstable_value = reader.read();
+                    let sstable_value = reader.read()?;
                     let record = bincode::deserialize::<Value<K, V>>(&sstable_value.data).unwrap();
                     match record.key.cmp(key) {
                         Ordering::Less => {
                             prev = Some(record);
-                            reader.next();
+                            reader.next()?;
                         }
                         Ordering::Equal => {
                             prev = Some(record);
-                            reader.next();
+                            reader.next()?;
                         }
                         Ordering::Greater => {
                             break;
@@ -184,7 +184,7 @@ where
         return WriteAheadLog::recover(options);
     }
 
-    pub fn delete(&mut self, key: &K) -> Result<()> {
+    pub fn delete(&mut self, _key: &K) -> Result<()> {
         // add delete marker to Write Ahead Log
         unimplemented!()
     }
@@ -200,7 +200,7 @@ where
             let mut reader = maybe_reader.unwrap();
             while reader.has_next() {
                 if counter % options.sparse_index_sampling_rate == 0 {
-                    let sstable_value: SSTableValue = reader.read();
+                    let sstable_value: SSTableValue = reader.read()?;
                     let record: Value<K, V> =
                         bincode::deserialize(sstable_value.data.as_slice()).unwrap();
                     let key = record.key;
@@ -210,7 +210,7 @@ where
                     index.update(key.clone(), address);
                 }
                 counter += 1;
-                reader.next();
+                reader.next()?;
             }
             return Ok(());
         }
@@ -220,7 +220,7 @@ where
     fn swap_sstables_with_compacted_table(&mut self, compacted_path: &PathBuf) -> Result<String> {
         let sstable_paths = SSTableReader::get_valid_table_paths(&self.options.path)?;
         for table_path in sstable_paths {
-            remove_file(table_path);
+            remove_file(table_path)?;
         }
         let new_sstable_path = format!("{}/tables/0.db", self.options.path);
         // copy compacted table
@@ -237,6 +237,6 @@ where
     K: ResourceKey,
 {
     fn drop(&mut self) {
-        self.log.cleanup();
+        self.log.cleanup().expect("Cleanup failed");
     }
 }
