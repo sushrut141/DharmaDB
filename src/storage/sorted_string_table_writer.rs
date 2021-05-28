@@ -50,12 +50,12 @@ pub fn write_sstable<K: ResourceKey, V: ResourceValue>(
                     "Failed to write block from chunk {0} to disk",
                     block_counter
                 );
-                return Err(Errors::SSTABLE_CREATION_FAILED);
+                return Err(Errors::SsTableCreationFailed);
             }
         }
     } else {
         log::error!("Failed to create SSTable from chunk from values");
-        return Err(Errors::SSTABLE_CREATION_FAILED);
+        return Err(Errors::SsTableCreationFailed);
     }
     Ok(PathBuf::from(path_str))
 }
@@ -96,12 +96,12 @@ pub fn write_sstable_at_path<K: ResourceKey, V: ResourceValue>(
                     "Failed to write block from chunk {0} to disk",
                     block_counter
                 );
-                return Err(Errors::SSTABLE_CREATION_FAILED);
+                return Err(Errors::SsTableCreationFailed);
             }
         }
     } else {
         log::error!("Failed to create SSTable from chunk from values");
-        return Err(Errors::SSTABLE_CREATION_FAILED);
+        return Err(Errors::SsTableCreationFailed);
     }
     Ok(())
 }
@@ -212,5 +212,5 @@ pub fn read_sstable<K: DeserializeOwned, V: DeserializeOwned>(
         }
         return Ok(output);
     }
-    Err(Errors::SSTABLE_READ_FAILED)
+    Err(Errors::SsTableReadFailed)
 }

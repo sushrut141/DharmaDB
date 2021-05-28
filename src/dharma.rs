@@ -91,7 +91,7 @@ where
             }
             return Ok(());
         }
-        Err(Errors::WAL_WRITE_FAILED)
+        Err(Errors::WalWriteFailed)
     }
 
     /// Delete the value associated with the key.

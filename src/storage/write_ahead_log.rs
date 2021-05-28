@@ -26,9 +26,9 @@ impl WriteAheadLog {
                     writer,
                 });
             }
-            return Err(Errors::WAL_LOG_CREATION_FAILED);
+            return Err(Errors::WalLogCreationFailed);
         }
-        Err(Errors::DB_PATH_DIRTY)
+        Err(Errors::DbPathDirty)
     }
 
     /// Write the key and value to the Write Ahead Log.
@@ -49,7 +49,7 @@ impl WriteAheadLog {
         for block in blocks {
             let write_result = write_block_to_disk(&self.options, &mut self.writer, &block);
             if write_result.is_err() {
-                return Err(Errors::WAL_WRITE_FAILED);
+                return Err(Errors::WalWriteFailed);
             }
         }
         Ok(())
@@ -66,7 +66,7 @@ impl WriteAheadLog {
         if delete_wal_result.is_ok() {
             return WriteAheadLog::create(self.options.clone());
         }
-        Err(Errors::WAL_LOG_CREATION_FAILED)
+        Err(Errors::WalLogCreationFailed)
     }
 
     /// Delete the Write Ahead Log.
@@ -79,7 +79,7 @@ impl WriteAheadLog {
         let path = format!("{0}/{1}", self.options.path, WRITE_AHEAD_LOG_NAME);
         let delete_wal_result = remove_file(&path);
         if delete_wal_result.is_err() {
-            return Err(Errors::WAL_CLEANUP_FAILED);
+            return Err(Errors::WalCleanupFailed);
         }
         Ok(())
     }
@@ -100,6 +100,6 @@ impl WriteAheadLog {
         }
         return remove_file(&path)
             .and_then(|_| Ok(data))
-            .map_err(|_| Errors::WAL_BOOTSTRAP_FAILED);
+            .map_err(|_| Errors::WalBootstrapFailed);
     }
 }

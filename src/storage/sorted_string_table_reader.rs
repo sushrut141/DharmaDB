@@ -15,7 +15,7 @@ pub struct SSTableValue {
 impl SSTableValue {
     pub fn to_record<K: ResourceKey, V: ResourceValue>(&self) -> Result<Value<K, V>> {
         let value_result = bincode::deserialize::<Value<K, V>>(self.data.as_slice());
-        return value_result.map_err(|err| Errors::RECORD_DESERIALIZATION_FAILED);
+        return value_result.map_err(|err| Errors::RecordDeserializeationFailed);
     }
 }
 
@@ -67,7 +67,7 @@ impl SSTableReader {
                 reader,
             });
         }
-        return Err(Errors::SSTABLE_READ_FAILED);
+        return Err(Errors::SsTableReadFailed);
     }
 
     /// Get the paths to valid SSTables within the supplied directory.
@@ -97,7 +97,7 @@ impl SSTableReader {
             output.sort();
             return Ok(output);
         }
-        Err(Errors::SSTABLE_READ_FAILED)
+        Err(Errors::SsTableReadFailed)
     }
 
     /// Read a value from the SSTable.
@@ -186,7 +186,7 @@ impl SSTableReader {
             self.buffer_offset = offset - block_offset;
             return Ok(());
         }
-        Err(Errors::SSTABLE_INVALID_READ_OFFSET)
+        Err(Errors::SsTableInvalidReadOffset)
     }
 
     /// Check whether more values can be processed in the SSTable.
