@@ -36,12 +36,10 @@ pub fn write_sstable<K: ResourceKey, V: ResourceValue>(
     let path_str = format!("{0}/tables/{1}.db", options.path, table_number);
     let path = Path::new(&path_str);
     match path.parent() {
-        Some(parent) => {
-            if parent.exists() {
-                create_dir_all(parent)?;
-            }
+        Some(parent) if !parent.exists() => {
+            create_dir_all(parent)?;
         }
-        None => (),
+        _ => (),
     };
     // create file for SSTable
     let file_result = File::create(&path);

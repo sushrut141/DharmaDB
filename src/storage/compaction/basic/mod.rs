@@ -130,12 +130,10 @@ impl BasicCompaction {
             // create new SSTable at output path
             let output_path = Path::new(&self.options.output_path);
             match output_path.parent() {
-                Some(parent) => {
-                    if !parent.exists() {
-                        create_dir_all(parent)?;
-                    }
+                Some(parent) if !parent.exists() => {
+                    create_dir_all(parent)?;
                 }
-                None => (),
+                _ => (),
             };
             let _ = File::create(output_path)
                 .map_err(|_| CompactionError::InvalidCompactionOutputPath)?;
