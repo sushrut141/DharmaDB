@@ -35,13 +35,18 @@ pub fn write_sstable<K: ResourceKey, V: ResourceValue>(
     // write this chunk to disk
     let path_str = format!("{0}/tables/{1}.db", options.path, table_number);
     let path = Path::new(&path_str);
-    if path.parent().is_some() && !path.parent().unwrap().exists() {
-        create_dir_all(path.parent().unwrap());
-    }
+    match path.parent() {
+        Some(parent) => {
+            if parent.exists() {
+                create_dir_all(parent)?;
+            }
+        }
+        None => (),
+    };
     // create file for SSTable
     let file_result = File::create(&path);
     if file_result.is_ok() {
-        let mut file = file_result.unwrap();
+        let mut file = file_result?;
         // write all blocks to SSTable file
         for (block_counter, block) in blocks.iter().enumerate() {
             let write_result = write_block_to_disk(options, &mut file, &block);
@@ -87,7 +92,7 @@ pub fn write_sstable_at_path<K: ResourceKey, V: ResourceValue>(
     // create file for SSTable
     let file_result = File::create(path);
     if file_result.is_ok() {
-        let mut file = file_result.unwrap();
+        let mut file = file_result?;
         // write all blocks to SSTable file
         for (block_counter, block) in blocks.iter().enumerate() {
             let write_result = write_block_to_disk(options, &mut file, &block);

@@ -1,5 +1,5 @@
 use crate::result::{Error, Result};
-use crate::storage::block::{to_record_type, Record, RecordType, Value};
+use crate::storage::block::{to_record_type, RecordType, Value};
 use crate::traits::{ResourceKey, ResourceValue};
 use buffered_offset_reader::{BufOffsetReader, OffsetReadMut};
 use std::fs::{read_dir, File};
@@ -14,8 +14,8 @@ pub struct SSTableValue {
 
 impl SSTableValue {
     pub fn to_record<K: ResourceKey, V: ResourceValue>(&self) -> Result<Value<K, V>> {
-        let value_result = bincode::deserialize::<Value<K, V>>(self.data.as_slice());
-        return value_result.map_err(|err| Error::RecordDeserializeationFailed);
+        bincode::deserialize::<Value<K, V>>(self.data.as_slice())
+            .map_err(|_| Error::RecordDeserializeationFailed)
     }
 }
 
@@ -57,7 +57,7 @@ impl SSTableReader {
             let size = file.metadata().unwrap().len();
             let mut reader = BufOffsetReader::new(file);
             let mut buffer = vec![0u8; block_size as usize];
-            reader.read_at(&mut buffer, 0);
+            reader.read_at(&mut buffer, 0)?;
             return Ok(SSTableReader {
                 block_size,
                 buffer,
@@ -104,7 +104,7 @@ impl SSTableReader {
     ///
     /// # Returns
     /// The value read from the SSTable.
-    pub fn read(&mut self) -> SSTableValue {
+    pub fn read(&mut self) -> Result<SSTableValue> {
         let mut previous_buffer_offset = self.buffer_offset;
         let previous_offset = self.offset;
         let previous_buffer = self.buffer.clone();
@@ -112,7 +112,7 @@ impl SSTableReader {
         loop {
             match to_record_type(self.buffer[self.buffer_offset]) {
                 RecordType::PADDING => {
-                    self.load_next_block();
+                    self.load_next_block()?;
                 }
                 RecordType::COMPLETE => {
                     let buffer = &self.buffer;
@@ -128,10 +128,10 @@ impl SSTableReader {
                     self.offset = previous_offset;
                     self.buffer_offset = previous_buffer_offset;
                     self.buffer = previous_buffer;
-                    return SSTableValue {
+                    return Ok(SSTableValue {
                         offset,
                         data: data_copy,
-                    };
+                    });
                 }
                 RecordType::START | RecordType::MIDDLE => {
                     let buffer = &self.buffer;
@@ -143,7 +143,7 @@ impl SSTableReader {
                         temp_buffer.push(self.buffer[i]);
                     }
                     // load the next block
-                    self.load_next_block();
+                    self.load_next_block()?;
                 }
                 RecordType::END => {
                     let buffer = &self.buffer;
@@ -160,10 +160,10 @@ impl SSTableReader {
                     self.offset = previous_offset;
                     self.buffer_offset = previous_buffer_offset;
                     self.buffer = previous_buffer;
-                    return SSTableValue {
+                    return Ok(SSTableValue {
                         offset,
                         data: temp_buffer,
-                    };
+                    });
                 }
                 _ => {}
             }
@@ -208,14 +208,14 @@ impl SSTableReader {
 
     /// Advance the offset to the next value in the SSTable.
     /// This method should only be called if `has_next` returns `true`.
-    pub fn next(&mut self) {
+    pub fn next(&mut self) -> Result<()> {
         loop {
             let buffer = &self.buffer;
             let record_type = to_record_type(self.buffer[self.buffer_offset]);
             match record_type {
                 // check if this is the last block in table before loading next block
                 RecordType::PADDING => {
-                    self.load_next_block();
+                    self.load_next_block()?;
                     break;
                 }
                 RecordType::COMPLETE => {
@@ -225,12 +225,12 @@ impl SSTableReader {
                     self.buffer_offset += 3;
                     self.buffer_offset += size;
                     if self.buffer_offset == self.block_size {
-                        self.load_next_block();
+                        self.load_next_block()?;
                     }
                     break;
                 }
                 RecordType::START | RecordType::MIDDLE => {
-                    self.load_next_block();
+                    self.load_next_block()?;
                 }
                 RecordType::END => {
                     let upper_byte = buffer[self.buffer_offset + 1] as u16;
@@ -239,24 +239,27 @@ impl SSTableReader {
                     let size = (upper_byte << 8 | lower_byte) as usize;
                     self.buffer_offset += size;
                     if self.buffer_offset == self.block_size {
-                        self.load_next_block();
+                        self.load_next_block()?;
                     }
                     break;
                 }
                 _ => {}
             }
         }
+
+        Ok(())
     }
 
-    fn load_next_block(&mut self) {
-        self.load_block_at(self.offset + self.block_size);
+    fn load_next_block(&mut self) -> Result<()> {
+        self.load_block_at(self.offset + self.block_size)
     }
 
-    fn load_block_at(&mut self, offset: usize) {
+    fn load_block_at(&mut self, offset: usize) -> Result<()> {
         let mut buffer = vec![0u8; self.block_size];
         self.offset = offset;
         self.buffer_offset = 0;
-        self.reader.read_at(&mut buffer, self.offset as u64);
+        self.reader.read_at(&mut buffer, self.offset as u64)?;
         self.buffer = buffer;
+        Ok(())
     }
 }
