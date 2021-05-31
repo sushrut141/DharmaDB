@@ -1,9 +1,9 @@
 use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;
 use crate::common::{cleanup_paths, get_test_data, get_test_data_in_range};
-use dharmadb::result::{Errors, Result};
 use dharmadb::options::DharmaOpts;
 use dharmadb::persistence::Persistence;
+use dharmadb::result::Result;
 use dharmadb::storage::sorted_string_table_reader::SSTableReader;
 use dharmadb::traits::Nil;
 
@@ -72,7 +72,7 @@ fn test_persistence_get_after_flush_with_duplicate_keys() {
     }
     let options = DharmaOpts::default();
     cleanup_paths(&options);
-    let persistence_result: Result<Persistence<TestKey>, Errors> =
+    let persistence_result: Result<Persistence<TestKey>> =
         Persistence::create::<TestValue>(options);
     let mut persistence = persistence_result.unwrap();
     let flush_result = persistence.flush(&data);
@@ -92,7 +92,7 @@ fn test_persistence_delete_after_flush() {
     let data = get_test_data(200);
     let options = DharmaOpts::default();
     cleanup_paths(&options);
-    let persistence_result: Result<Persistence<TestKey>, Errors> =
+    let persistence_result: Result<Persistence<TestKey>> =
         Persistence::create::<TestValue>(options);
     let mut persistence = persistence_result.unwrap();
     let flush_result = persistence.flush(&data);
