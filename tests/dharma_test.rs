@@ -2,7 +2,7 @@ use crate::common::test_key::TestKey;
 use crate::common::test_value::TestValue;
 use crate::common::{cleanup_paths, get_test_data, get_test_data_in_range};
 use dharmadb::dharma::Dharma;
-use dharmadb::errors::Errors;
+use dharmadb::result::{Errors, Result};
 use dharmadb::options::DharmaOpts;
 use dharmadb::storage::write_ahead_log::WriteAheadLog;
 
@@ -12,7 +12,7 @@ mod common;
 fn test_create_database() {
     let options = DharmaOpts::default();
     cleanup_paths(&options);
-    let db: Result<Dharma<TestKey, TestValue>, Errors> = Dharma::create(options);
+    let db: Result<Dharma<TestKey, TestValue>> = Dharma::create(options);
     assert!(db.is_ok());
 }
 
@@ -153,7 +153,7 @@ fn test_database_initialization_fails_when_wal_exists_at_path() {
         wal.append(key, value);
     }
     // initializing database should fail due to exustence of wal
-    let mut db_result: Result<Dharma<TestKey, TestValue>, Errors> = Dharma::create(options.clone());
+    let mut db_result: Result<Dharma<TestKey, TestValue>> = Dharma::create(options.clone());
     assert!(db_result.is_err());
 }
 
@@ -169,7 +169,7 @@ fn test_database_recovery_from_existing_wal() {
         wal.append(key, value);
     }
     // initializing database should fail due to exustence of wal
-    let mut db_result: Result<Dharma<TestKey, TestValue>, Errors> = Dharma::create(options.clone());
+    let mut db_result: Result<Dharma<TestKey, TestValue>> = Dharma::create(options.clone());
     assert!(db_result.is_err());
     // attempt database recovery
     let new_db_result = Dharma::<TestKey, TestValue>::recover::<TestKey, TestValue>(options);

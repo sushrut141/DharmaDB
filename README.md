@@ -10,13 +10,13 @@ DharmaDB is a persistent, fault tolerant Key-Value Store written in Rust.
 Just create an instance of `Dharma` to get the key value store up and running.
 ```rust
 use dharmadb::dharma::Dharma;
-use dharmadb::errors::Errors;
+use dharmadb::errors::Result;
 use dharmadb::options::DharmaOpts;
 
 // configure options such as database persistence path
 // or block size using DharmaOpts or use the defaults
 let options = DharmaOpts::default();
-let db_result: Result<Dharma, Errors> = Dharma::new(options);
+let db_result: Result<Dharma> = Dharma::new(options);
 
 // start using database
 let db = db_result.unwrap();
@@ -34,11 +34,11 @@ using the `Dharma<K, V>` interface.
 The put operation is used to persist a value associated with a key to the store.
 ```rust
 use dharmadb::dharma::Dharma;
-use dharmadb::errors::Errors;
+use dharmadb::errors::Result;
 use dharmadb::options::DharmaOpts;
 
 let options = DharmaOpts::default();
-let db_result: Result<Dharma<MyKey, MyValue>, Errors> = Dharma::new(options);
+let db_result: Result<Dharma<MyKey, MyValue>> = Dharma::new(options);
 
 // persist key / value pair
 let put_result = db.put(my_key, my_value);
@@ -49,11 +49,11 @@ let put_result = db.put(my_key, my_value);
 The get operation retrieves the value associated with a key if it exists.
 ```rust
 use dharmadb::dharma::Dharma;
-use dharmadb::errors::Errors;
+use dharmadb::errors::Result;
 use dharmadb::options::DharmaOpts;
 
 let options = DharmaOpts::default();
-let db_result: Result<Dharma<MyKey, MyValue>, Errors> = Dharma::new(options);
+let db_result: Result<Dharma<MyKey, MyValue>> = Dharma::new(options);
 
 // get the key if it exists
 let get_result = db.get(&my_key);

@@ -1,4 +1,4 @@
-use crate::errors::Errors;
+use crate::result::{Errors, Result};
 use crate::options::DharmaOpts;
 use crate::storage::block::{create_blocks, write_block_to_disk, Block, Value};
 use crate::storage::sorted_string_table_reader::SSTableReader;
@@ -14,7 +14,7 @@ pub struct WriteAheadLog {
 }
 
 impl WriteAheadLog {
-    pub fn create(options: DharmaOpts) -> Result<WriteAheadLog, Errors> {
+    pub fn create(options: DharmaOpts) -> Result<WriteAheadLog> {
         let path = format!("{0}/{1}", options.path, WRITE_AHEAD_LOG_NAME);
         // check if WAL already exists
         if !Path::new(&path).exists() {
@@ -41,11 +41,7 @@ impl WriteAheadLog {
     /// Result that is:
     ///  - _Ok_ - If the record was added to the log successfully.
     ///  - _Err_ - The there was an error writing record to disk. Partial record may be written.
-    pub fn append<K: ResourceKey, V: ResourceValue>(
-        &mut self,
-        key: K,
-        value: V,
-    ) -> Result<(), Errors> {
+    pub fn append<K: ResourceKey, V: ResourceValue>(&mut self, key: K, value: V) -> Result<()> {
         let value = Value::new(key, value);
         // break record into blocks
         let mut blocks: Vec<Block> = Vec::new();
@@ -65,7 +61,7 @@ impl WriteAheadLog {
     /// Result that resolves
     ///  - _Ok_ - New Write Ahead Log to be used in place of existing.
     ///  - _Err_ - Error that occurred while resetting Write Ahead Log.
-    pub fn reset(&mut self) -> Result<WriteAheadLog, Errors> {
+    pub fn reset(&mut self) -> Result<WriteAheadLog> {
         let delete_wal_result = self.cleanup();
         if delete_wal_result.is_ok() {
             return WriteAheadLog::create(self.options.clone());
@@ -79,7 +75,7 @@ impl WriteAheadLog {
     /// Result that specifies
     ///  - _Ok_ - Write Ahead Log was successfully deleted.
     ///  - _Err_ -
-    pub fn cleanup(&mut self) -> Result<(), Errors> {
+    pub fn cleanup(&mut self) -> Result<()> {
         let path = format!("{0}/{1}", self.options.path, WRITE_AHEAD_LOG_NAME);
         let delete_wal_result = remove_file(&path);
         if delete_wal_result.is_err() {
@@ -91,9 +87,7 @@ impl WriteAheadLog {
     /// Attempt to recover data from existing WAL. This operation does not ensure
     /// database recovery and could lead to data loss. WAL is deleted after
     /// this operation.
-    pub fn recover<K: ResourceKey, V: ResourceValue>(
-        options: DharmaOpts,
-    ) -> Result<Vec<(K, V)>, Errors> {
+    pub fn recover<K: ResourceKey, V: ResourceValue>(options: DharmaOpts) -> Result<Vec<(K, V)>> {
         let path = format!("{0}/{1}", options.path, WRITE_AHEAD_LOG_NAME);
         let mut reader =
             SSTableReader::from(&PathBuf::from(&path), options.block_size_in_bytes).unwrap();

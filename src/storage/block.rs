@@ -1,4 +1,4 @@
-use crate::errors::Errors;
+use crate::result::Result;
 use crate::options::DharmaOpts;
 use crate::traits::{ResourceKey, ResourceValue};
 use serde::{Deserialize, Serialize};
@@ -232,7 +232,7 @@ pub fn write_block_to_disk(
     options: &DharmaOpts,
     file_handle: &mut File,
     block: &Block,
-) -> Result<(), Errors> {
+) -> Result<()> {
     let mut written_size_in_bytes = 0;
     for record in &block.records {
         match record.record_type {

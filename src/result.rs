@@ -1,4 +1,9 @@
+//! Errors, type aliases, and functions related to working with `Result`.
+
 use std::fmt::{Debug, Display, Formatter};
+
+/// Result
+pub type Result<T> = std::result::Result<T, Errors>;
 
 #[allow(non_camel_case_types)]
 #[derive(PartialEq)]
